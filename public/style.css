@@ -1,3 +1,15 @@
 body {
   background-color: #e7f2ee;
 }
+
+canvas {
+  background-color: white;
+}
+
+.top {
+  text-align: center;
+}
+
+.canvas-container {
+  text-align: center;
+}

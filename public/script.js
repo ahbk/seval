@@ -4,8 +4,17 @@ let context = canvas.getContext('2d')
 // Center origin (assume canvas width=800 and height=500)
 context.translate(400, 250)
 
-// Create a 200px sized voxel with center in origin and draw each side as a polygon
-voxel(-100, -100, -100, 200).forEach(polygon => draw(polygon, 800, context))
+animate()
+
+function animate(m) {
+  window.requestAnimationFrame(animate)
+  context.clearRect(-400, -250, 800, 500)
+
+  rotation = [m * .001, m * .001, m * .001]
+
+  // Create a 200px sized voxel with center in origin and draw each side as a polygon
+  voxel(-100, -100, -100, 200).forEach(polygon => draw(polygon, rotation, 800, context))
+}
 
 function voxel(x, y, z, w) {
   // Use (x, y, z) as top-left-front corner and create a square for each side with width w
@@ -19,12 +28,12 @@ function voxel(x, y, z, w) {
   ]
 }
 
-function draw(polygon, depth, context) {
+function draw(polygon, rotation, depth, context) {
   context.beginPath()
 
   polygon.forEach(v => {
     // Rotate every vector 45 degrees in each dimension
-    v = rotate(v, [Math.PI/4, Math.PI/4, Math.PI/4])
+    v = rotate(v, rotation)
     // Map 3d -> 2d
     context.lineTo(v[0] / (v[2] + depth) * depth, v[1] / (v[2] + depth) * depth)
   })

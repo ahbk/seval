@@ -1,0 +1,46 @@
+- hosts: localhost
+  tasks:
+  - name: Create archive from git ~HEAD
+    command: git archive -o deploy.tar.gz HEAD
+
+- hosts: seval
+  remote_user: root
+  tasks:
+
+  - name: Download installation script for node
+    get_url:
+      url: https://deb.nodesource.com/setup_8.x
+      dest: /tmp/setup_8.x.sh
+      mode: 0700
+
+  - name: Run installation script for node
+    command: /tmp/setup_8.x.sh
+
+  - name: Install nodejs
+    apt:
+      name: "{{ packages }}"
+    vars:
+      packages:
+      - nodejs
+
+  - name: Make directory /opt/seval
+    file:
+      path: /opt/seval
+      state: directory
+
+  - name: Extract deploy.tar.gz into /opt/seval
+    unarchive:
+      src: deploy.tar.gz
+      dest: /opt/seval
+
+  - name: Install/upgrade npm packages
+    npm:
+      path: /opt/seval
+      state: latest
+
+- hosts: localhost
+  tasks:
+  - name: Remove archive
+    file:
+      path: deploy.tar.gz
+      state: absent

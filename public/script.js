@@ -20,19 +20,35 @@ function animate(m) {
 
   rotation = [m * .001, m * .001, m * .001]
   polygons
-    .map(polygon => polygon.map(v => rotate(v, rotation)))
+    .map(polygon => polygon.map(vector => rotate(vector, rotation)))
     .sort(sort)
     .forEach(polygon => draw(polygon, 800, context))
 }
 
+function normal(polygon) {
+
+  let c = cross(
+    [polygon[1][0] - polygon[0][0], polygon[1][1] - polygon[0][1], polygon[1][2] - polygon[0][2]],
+    [polygon[2][0] - polygon[0][0], polygon[2][1] - polygon[0][1], polygon[2][2] - polygon[0][2]]
+  )
+
+  return [polygon[0][0] + c[0], polygon[0][1] + c[1], polygon[0][2] + c[2]]
+}
+
+function cross(a, b) {
+  return [ a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] ]
+}
+
 function sort(pa, pb) {
-  la = pa.map(v => distance(v, [0, 0, -800])).sort()
-  lb = pb.map(v => distance(v, [0, 0, -800])).sort()
+  let o = [0, 0, -800]
+  let la = pa.map(v => distance([v[0] - o[0], v[1] - o[1], v[2] - o[2]])).sort()
+  let lb = pb.map(v => distance([v[0] - o[0], v[1] - o[1], v[2] - o[2]])).sort()
+
   return lb[0] - la[0] || lb[1] - la[1] || lb[2] - la[2] || lb[3] - la[3]
 }
 
-function distance(a, b) {
-  return Math.sqrt(Math.pow(a[0]-b[0], 2) + Math.pow(a[1]-b[1], 2) + Math.pow(a[2]-b[2], 2))
+function distance(v) {
+  return Math.sqrt(Math.pow(v[0], 2) + Math.pow(v[1], 2) + Math.pow(v[2], 2))
 }
 
 function cuboid(p, d) {
@@ -58,11 +74,28 @@ function cuboid(p, d) {
 }
 
 function draw(polygon, depth, context) {
+  // Map a 3d polygon onto a 2d surface (the canvas)
+  // Paramater depth is z-distance from viewer to origin
+
+  let light = [-1, 0, -1]
+  let observer = [0, 0, -800]
+
+  let n = normal(polygon)
+  let ao = Math.acos((n[0] * observer[0] + n[1] * observer[1] + n[2] * observer[2])/(distance(n) * distance(observer)))
+
+  var dot = (n[0] * light[0] + n[1] * light[1] + n[2] * light[2])/(distance(n) * distance(light))
+
+  if(ao < Math.PI / 2) {
+    dot = -dot
+  }
+
+  let al = Math.acos(dot)
+  let vl = Math.round(160 + 80 * al / Math.PI)
+  
+  context.fillStyle = `rgb(${vl}, ${vl}, ${vl})`
+  context.strokeStyle = 'white'
+
   context.beginPath()
-
-  let v = 200
-
-  context.fillStyle = `rgb(${v}, ${v}, ${v})`
 
   polygon.forEach(v => {
     // Map 3d -> 2d

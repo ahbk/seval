@@ -5,21 +5,34 @@ let context = canvas.getContext('2d')
 context.translate(400, 250)
 
 const cuboids = [
-  cuboid([-200, -150, -120], [120, 120, 120]),
-  cuboid([-10, -130, -80], [180, 180, 180])
+  cuboid([-200, -150, -121], [120, 120, 120]),
+  cuboid([-10, -130, -81], [180, 180, 180])
 ]
 
 // Make a list of all polygons in all cuboids
 polygons = cuboids.reduce((a, v) => a.concat(v))
 
-animate()
+animate(0)
 
 function animate(m) {
   window.requestAnimationFrame(animate)
   context.clearRect(-400, -250, 800, 500)
 
   rotation = [m * .001, m * .001, m * .001]
-  polygons.forEach(polygon => draw(polygon, rotation, 800, context))
+  polygons
+    .map(polygon => polygon.map(v => rotate(v, rotation)))
+    .sort(sort)
+    .forEach(polygon => draw(polygon, 800, context))
+}
+
+function sort(pa, pb) {
+  la = pa.map(v => distance(v, [0, 0, -800])).sort()
+  lb = pb.map(v => distance(v, [0, 0, -800])).sort()
+  return lb[0] - la[0] || lb[1] - la[1] || lb[2] - la[2] || lb[3] - la[3]
+}
+
+function distance(a, b) {
+  return Math.sqrt(Math.pow(a[0]-b[0], 2) + Math.pow(a[1]-b[1], 2) + Math.pow(a[2]-b[2], 2))
 }
 
 function cuboid(p, d) {
@@ -44,18 +57,20 @@ function cuboid(p, d) {
   ]
 }
 
-function draw(polygon, rotation, depth, context) {
+function draw(polygon, depth, context) {
   context.beginPath()
 
+  let v = 200
+
+  context.fillStyle = `rgb(${v}, ${v}, ${v})`
+
   polygon.forEach(v => {
-
-    v = rotate(v, rotation)
-
     // Map 3d -> 2d
     context.lineTo(v[0] / (v[2] + depth) * depth, v[1] / (v[2] + depth) * depth)
   })
 
   context.closePath()
+  context.fill()
   context.stroke()
 }
 

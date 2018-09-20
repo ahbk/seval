@@ -1,8 +1,16 @@
-let canvas = document.getElementById('rotating-block-canvas')
+let canvas = document.getElementById('rotating-blocks-canvas')
 let context = canvas.getContext('2d')
 
 // Center origin (assume canvas width=800 and height=500)
 context.translate(400, 250)
+
+const cuboids = [
+  cuboid([-200, -150, -120], [120, 120, 120]),
+  cuboid([-10, -130, -80], [180, 180, 180])
+]
+
+// Make a list of all polygons in all cuboids
+polygons = cuboids.reduce((a, v) => a.concat(v))
 
 animate()
 
@@ -11,20 +19,28 @@ function animate(m) {
   context.clearRect(-400, -250, 800, 500)
 
   rotation = [m * .001, m * .001, m * .001]
-
-  // Create a 200px sized voxel with center in origin and draw each side as a polygon
-  voxel(-100, -100, -100, 200).forEach(polygon => draw(polygon, rotation, 800, context))
+  polygons.forEach(polygon => draw(polygon, rotation, 800, context))
 }
 
-function voxel(x, y, z, w) {
-  // Use (x, y, z) as top-left-front corner and create a square for each side with width w
+function cuboid(p, d) {
+  // Create polygons for a cuboid on p with dimensions d (p and d being three dimensional vectors)
+  corners = [
+    p, // 0 (left, top, front)
+    [ p[0] + d[0], p[1], p[2] ], // 1 (right, top, front)
+    [ p[0], p[1] + d[1], p[2] ], // 2 (left, bottom, front)
+    [ p[0] + d[0], p[1] + d[1], p[2] ], // 3 (right, bottom, front)
+    [ p[0], p[1], p[2] + d[2] ], // 4 (left, top, back)
+    [ p[0] + d[0], p[1], p[2] + d[2] ], // 5 (right, top, back)
+    [ p[0], p[1] + d[1], p[2] + d[2] ], // 6 (left, bottom, back)
+    [ p[0] + d[0], p[1] + d[1], p[2] + d[2] ] // 7 (right, bottom, back)
+  ]
   return [
-    [ [x, y, z], [x + w, y, z], [x + w, y + w, z], [x, y + w, z] ], // Front
-    [ [x, y, z + w], [x + w, y, z + w], [x + w, y + w, z + w], [x, y + w, z + w] ], // Back
-    [ [x, y, z], [x + w, y, z], [x + w, y, z + w], [x, y, z + w] ], // Top
-    [ [x, y + w, z], [x + w, y + w, z], [x + w, y + w, z + w], [x, y + w, z + w] ], // Bottom
-    [ [x, y, z], [x, y, z + w], [x, y + w, z + w], [x, y + w, z] ], // Left
-    [ [x + w, y, z], [x + w, y, z + w], [x + w, y + w, z + w], [x + w, y + w, z] ], // Right
+    [ corners[0], corners[1], corners[3], corners[2] ], // Front
+    [ corners[4], corners[5], corners[7], corners[6] ], // Back
+    [ corners[0], corners[2], corners[6], corners[4] ], // Left
+    [ corners[1], corners[3], corners[7], corners[5] ], // Right
+    [ corners[0], corners[1], corners[5], corners[4] ], // Top
+    [ corners[2], corners[3], corners[7], corners[6] ], // Bottom
   ]
 }
 
@@ -32,8 +48,9 @@ function draw(polygon, rotation, depth, context) {
   context.beginPath()
 
   polygon.forEach(v => {
-    // Rotate every vector 45 degrees in each dimension
+
     v = rotate(v, rotation)
+
     // Map 3d -> 2d
     context.lineTo(v[0] / (v[2] + depth) * depth, v[1] / (v[2] + depth) * depth)
   })

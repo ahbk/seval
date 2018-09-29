@@ -12,8 +12,7 @@ git clone https://github.com/alexh546/seval.git && cd seval
 
 ### Prerequisites
 
-* [node](https://nodejs.org/en/download/)
-* [ansible](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
+Install [node](https://nodejs.org/en/download/), [parcel](https://parceljs.org/getting_started.html) and [ansible](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html).
 
 ### Installing
 
@@ -21,7 +20,7 @@ Run ``npm install``.
 
 ### Development
 
-* Run ``node index.js``
+* Run ``parcel watch ui/index.html --out-dir ui/dist & node index.js``
 * Open http://your-dev-host:3000 in your browser
 
 ### Deploy

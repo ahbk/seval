@@ -36,6 +36,12 @@
       global: yes
       state: latest
 
+  - name: "Ensure latest parcel"
+    npm:
+      name: parcel
+      global: yes
+      state: latest
+
   - name: "Make directory /opt/seval"
     file:
       path: /opt/seval
@@ -50,6 +56,11 @@
     npm:
       path: /opt/seval
       state: latest
+  
+  - name: "Build dist"
+    shell: "parcel build index.html"
+    args:
+      chdir: "/opt/seval/ui"
   
   - name: "Start seval"
     shell: "pm2 start --env production"

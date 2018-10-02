@@ -1,129 +1,103 @@
-let canvas = document.getElementById('rotating-blocks-canvas')
-let context = canvas.getContext('2d')
+let cluster = require('../polygons/polygons')()
 
-// Center origin (assume canvas width=800 and height=500)
-context.translate(400, 250)
-
-const cuboids = [
-  cuboid([-200, -150, -121], [120, 120, 120]),
-  cuboid([-10, -130, -81], [180, 180, 180])
+let color = [240, 220, 220]
+let size = [1, 1, 1]
+let block_a = [
+  [0, 1, -2],
+  [0, 0, -2],
+  [0, 0, -1],
+  [0, 0, 0],
+  [0, 0, 1],
+  [1, 0, 1],
+]
+let block_b = [
+  [2, 0, 1],
+  [3, 0, 1],
+  [3, 0, 0],
+  [3, 0, -1],
+  [3, 1, -1],
+  [3, 2, -1],
+  [3, 3, -1],
 ]
 
-// Make a list of all polygons in all cuboids
-polygons = cuboids.reduce((a, v) => a.concat(v))
+block_a.forEach(c => cluster.cuboid(c, size, 'a', color))
+block_b.forEach(c => cluster.cuboid(c, size, 'b', color))
 
-animate(0)
+let canvas = document.getElementById('rotating-block-canvas')
+let context = canvas.getContext('2d')
+context.translate(400, 400) // Center origin (assume canvas width=800 and height=800)
 
-function animate(m) {
-  window.requestAnimationFrame(animate)
-  context.clearRect(-400, -250, 800, 500)
+let play = true
+let depth = 800
 
-  rotation = [m * .001, m * .001, m * .001]
-  polygons
-    .map(polygon => polygon.map(vector => rotate(vector, rotation)))
-    .sort(sort)
-    .forEach(polygon => draw(polygon, 800, context))
-}
+cluster
+  .scale([100, 100, 100])
+  .center([0, 0, 500], polygon => polygon.name === 'a')
+  .center([0, 0, 0], polygon => polygon.name === 'b')
+  .zsort([0, 0, -depth])
+  .shading([-1, 0, -1], 40, [0, 0, -depth])
+  .use(draw)
 
-function normal(polygon) {
+canvas.ontouchstart = event => {
+  var position = [event.changedTouches[0].pageX, event.changedTouches[0].pageY]
+  var move
+  play = false
 
-  let c = cross(
-    [polygon[1][0] - polygon[0][0], polygon[1][1] - polygon[0][1], polygon[1][2] - polygon[0][2]],
-    [polygon[2][0] - polygon[0][0], polygon[2][1] - polygon[0][1], polygon[2][2] - polygon[0][2]]
-  )
-
-  return [polygon[0][0] + c[0], polygon[0][1] + c[1], polygon[0][2] + c[2]]
-}
-
-function cross(a, b) {
-  return [ a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] ]
-}
-
-function sort(pa, pb) {
-  let o = [0, 0, -800]
-  let la = pa.map(v => distance([v[0] - o[0], v[1] - o[1], v[2] - o[2]])).sort()
-  let lb = pb.map(v => distance([v[0] - o[0], v[1] - o[1], v[2] - o[2]])).sort()
-
-  return lb[0] - la[0] || lb[1] - la[1] || lb[2] - la[2] || lb[3] - la[3]
-}
-
-function distance(v) {
-  return Math.sqrt(Math.pow(v[0], 2) + Math.pow(v[1], 2) + Math.pow(v[2], 2))
-}
-
-function cuboid(p, d) {
-  // Create polygons for a cuboid on p with dimensions d (p and d being three dimensional vectors)
-  corners = [
-    p, // 0 (left, top, front)
-    [ p[0] + d[0], p[1], p[2] ], // 1 (right, top, front)
-    [ p[0], p[1] + d[1], p[2] ], // 2 (left, bottom, front)
-    [ p[0] + d[0], p[1] + d[1], p[2] ], // 3 (right, bottom, front)
-    [ p[0], p[1], p[2] + d[2] ], // 4 (left, top, back)
-    [ p[0] + d[0], p[1], p[2] + d[2] ], // 5 (right, top, back)
-    [ p[0], p[1] + d[1], p[2] + d[2] ], // 6 (left, bottom, back)
-    [ p[0] + d[0], p[1] + d[1], p[2] + d[2] ] // 7 (right, bottom, back)
-  ]
-  return [
-    [ corners[0], corners[1], corners[3], corners[2] ], // Front
-    [ corners[4], corners[5], corners[7], corners[6] ], // Back
-    [ corners[0], corners[2], corners[6], corners[4] ], // Left
-    [ corners[1], corners[3], corners[7], corners[5] ], // Right
-    [ corners[0], corners[1], corners[5], corners[4] ], // Top
-    [ corners[2], corners[3], corners[7], corners[6] ], // Bottom
-  ]
-}
-
-function draw(polygon, depth, context) {
-  // Map a 3d polygon onto a 2d surface (the canvas)
-  // Paramater depth is z-distance from viewer to origin
-
-  let light = [-1, 0, -1]
-  let observer = [0, 0, -800]
-
-  let n = normal(polygon)
-  let ao = Math.acos((n[0] * observer[0] + n[1] * observer[1] + n[2] * observer[2])/(distance(n) * distance(observer)))
-
-  var dot = (n[0] * light[0] + n[1] * light[1] + n[2] * light[2])/(distance(n) * distance(light))
-
-  if(ao < Math.PI / 2) {
-    dot = -dot
+  canvas.ontouchmove = event => {
+    move = [event.changedTouches[0].pageX, event.changedTouches[0].pageY].map((e, i) => e - position[i])
+    position = [event.changedTouches[0].pageX, event.changedTouches[0].pageY]
+    cluster.rotate([move[1] * 0.01, -move[0] * 0.01, 0]).apply()
   }
 
-  let al = Math.acos(dot)
-  let vl = Math.round(160 + 80 * al / Math.PI)
-  
-  context.fillStyle = `rgb(${vl}, ${vl}, ${vl})`
-  context.strokeStyle = 'white'
+  document.ontouchend = event => {
+    play = true
+    animate()
+  }
+}
 
-  context.beginPath()
+canvas.onmousedown = event => {
+  var position = [event.pageX, event.pageY]
+  var move
+  play = false
 
-  polygon.forEach(v => {
-    // Map 3d -> 2d
-    context.lineTo(v[0] / (v[2] + depth) * depth, v[1] / (v[2] + depth) * depth)
+  canvas.onmousemove = event => {
+    move = [event.pageX, event.pageY].map((e, i) => e - position[i])
+    position = [event.pageX, event.pageY]
+    cluster.rotate([move[1] * 0.01, -move[0] * 0.01, 0]).apply()
+  }
+
+  document.onmouseup = event => {
+    canvas.onmousemove = undefined
+    play = true
+    animate()
+  }
+}
+
+animate()
+
+function animate () {
+  if (play) window.requestAnimationFrame(animate)
+  try {
+    cluster.rotate([0.005, 0.005, 0.005], polygon => polygon.name === 'a').apply()
+    cluster.rotate([0.005, 0.005, -0.005], polygon => polygon.name === 'b').apply()
+  } catch (error) {
+    play = false
+    console.log('stopped because exception')
+    throw error
+  }
+}
+
+function draw (polygons) {
+  context.clearRect(-400, -400, 800, 800)
+  polygons.forEach(polygon => {
+    context.fillStyle = `rgb(${polygon.color[0]}, ${polygon.color[1]}, ${polygon.color[2]})`
+    context.strokeStyle = 'white'
+    context.beginPath()
+
+    polygon.vectors.forEach(v => context.lineTo(v[0] / (v[2] + depth) * depth, v[1] / (v[2] + depth) * depth))
+
+    context.closePath()
+    context.fill()
+    context.stroke()
   })
-
-  context.closePath()
-  context.fill()
-  context.stroke()
-}
-
-function transform(v, m) {
-  // Return a linear transformation of vector v by transformation matrix m
-  return [
-    m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
-    m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
-    m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2],
-  ]
-}
-
-function rotate(v, r) {
-  // Return a rotation of vector v.
-  // Parameter r is an array with three elements giving the radians for the rotation (rx, ry, rz)
-  [
-    [ [1, 0, 0], [0, Math.cos(r[0]), -Math.sin(r[0])], [0, Math.sin(r[0]), Math.cos(r[0])], ],
-    [ [Math.cos(r[1]), 0, Math.sin(r[1])], [0, 1, 0], [-Math.sin(r[1]), 0, Math.cos(r[1])], ],
-    [ [Math.cos(r[2]), -Math.sin(r[2]), 0], [Math.sin(r[2]), Math.cos(r[2]), 0], [0, 0, 1], ]
-  ].forEach(m => { v = transform(v, m) })
-
-  return v
 }

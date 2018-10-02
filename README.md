@@ -1,6 +1,6 @@
 # Rotating block
 
-A 3d-animation of two rotating blocks, [see here](http://seval.io).
+A 3d-animation of a rotating block, [see here](http://seval.io).
 
 ## Getting started
 

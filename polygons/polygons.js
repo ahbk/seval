@@ -29,7 +29,7 @@
     ].reduce((acc, cur) => linal.transform(acc, cur), a),
   }
 
-  // Available transforms (exposed on polygons.transforms)
+  // Available transforms (acts on one polygon at a time)
   const transforms = {
     // Rotate vectors around center by rotation array with radians for x, y and z.
     rotate: (rotation, center) => (polygon) => polygon.vectors = polygon.vectors.map(vector =>
@@ -48,7 +48,7 @@
     },
   }
 
-  // Available processors (exposed on polygons.processors)
+  // Available processors (acts on a group of polygons at a time)
   const processors = {
     // Sort polygons by distance to observer (closest to observer appears last)
     zsort: observer => polygons => {
@@ -64,18 +64,10 @@
       location = location || [0, 0, 0]
       let smallest = polygons[0].vectors[0].slice()
       let largest = polygons[0].vectors[0].slice()
-
-      let match = (vectors) => {
-        vectors.forEach(vector => {
-          vector.forEach((e, i) => {
+      let match = (vectors) => vectors.forEach(vector => vector.forEach((e, i) => {
             smallest[i] = Math.min(smallest[i], e)
-            largest[i] = Math.max(largest[i], e)
-          })
-        })
-      }
-
+            largest[i] = Math.max(largest[i], e) }))
       polygons.forEach(polygon => match(polygon.vectors))
-
       let offset = smallest.map((e, i) => location[i] - (e + (largest[i] - e) / 2))
       polygons.forEach(polygon => transforms.transpose(offset)(polygon))
     },
@@ -100,9 +92,7 @@
       let c0 = [
         ['000', '100', '110', '010'],
         ['000', '010', '011', '001'],
-        ['000', '001', '101', '100'],
-      ]
-
+        ['000', '001', '101', '100'] ]
       // For the three sides of the cuboid defined above and their invertions, calculate the position of the corners
       // one side at the time and add each side as a polygon.
       let add = vectors => target(vectors, name, color);
@@ -167,8 +157,8 @@
   }
 
   let _constr = () => new Cluster()
-  _constr.processors = processors
-  _constr.transforms = transforms
+  _constr._processors = processors
+  _constr._transforms = transforms
   _constr._Cluster = Cluster
   _constr._Polygon = Polygon
   _constr._linal = linal

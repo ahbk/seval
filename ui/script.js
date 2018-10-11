@@ -79,13 +79,17 @@ function animate () {
   if (play) window.requestAnimationFrame(animate)
   try {
     cluster
-      .rotate([0.005, 0.005, 0.005], polygon => polygon.name === 'a')
+      .rotate(
+        [0.005, 0.005, 0.005],
+        [0, 0, 500],
+        polygon => polygon.name === 'a')
       .zsort([0, 0, -depth])
       .shading([-1, 0, -1], 40, [0, 0, -depth])
       .apply(draw)
     cluster
       .rotate(
         [0.005, 0.005, -0.005],
+        [0, 0, 0],
         polygon => polygon.name === 'b')
       .zsort([0, 0, -depth])
       .shading([-1, 0, -1], 40, [0, 0, -depth])

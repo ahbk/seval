@@ -31,8 +31,9 @@
 
   // Available transforms (exposed on polygons.transforms)
   const transforms = {
-    // Rotate vectors by rotation array with radians for x, y and z.
-    rotate: rotation => (polygon) => (polygon.vectors = polygon.vectors.map(vector => linal.rotate(vector, rotation))),
+    // Rotate vectors around center by rotation array with radians for x, y and z.
+    rotate: (rotation, center) => (polygon) => polygon.vectors = polygon.vectors.map(vector =>
+      linal.rotate(vector.map((e, i) => e - center[i]), rotation).map((e, i) => e + center[i])),
     // Scale vectors by scale
     scale: scale => (polygon) => (polygon.vectors = polygon.vectors.map(v => v.map((e, i) => e * scale[i]))),
     // Move vectors by offset
@@ -155,8 +156,8 @@
       return this
     }
 
-    this.rotate = (rotation, filter) => {
-      this.apply(processors.transform(transforms.rotate(rotation)), filter)
+    this.rotate = (rotation, center, filter) => {
+      this.apply(processors.transform(transforms.rotate(rotation, center)), filter)
       return this
     }
 

@@ -8,19 +8,14 @@
   const linal = {
     // The normal of a plane in points a, b and c.
     normal: (a, b, c) => linal.cross(a.map((e, i) => b[i] - e), a.map((e, i) => c[i] - e)).map((e, i) => a[i] + e),
-
     // The cross product of vectors a and b
     cross: (a, b) => [ a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] ],
-
     // The dot product of vectors a and b
     dot: (a, b) => a.reduce((acc, cur, i) => acc + cur * b[i], 0) / (linal.distance(a) * linal.distance(b)),
-
     // The euclidean distance between vector a and b (b defaults to origin)
     distance: (a, b) => Math.sqrt(a.reduce((acc, cur, i) => acc + Math.pow(cur - (b ? b[i] : 0), 2), 0)),
-
     // A transformation of vector a by transformation matrix m
     transform: (a, m) => m.map(row => row.reduce((acc, cur, i) => acc + cur * a[i], 0)),
-
     // A rotation of vector a by r applied in order r[0] (x), r[1] (y) and last r[2] (z).
     rotate: (a, r) => [
       [ [1, 0, 0], [0, Math.cos(r[0]), -Math.sin(r[0])], [0, Math.sin(r[0]), Math.cos(r[0])] ],
@@ -29,27 +24,28 @@
     ].reduce((acc, cur) => linal.transform(acc, cur), a),
   }
 
-  // Available transforms (acts on one polygon at a time)
+  // Functions that transform an iterable of polygons
   const transforms = {
-    // Rotate vectors around center by rotation array with radians for x, y and z.
-    rotate: (rotation, center) => (polygon) => polygon.vectors = polygon.vectors.map(vector =>
-      linal.rotate(vector.map((e, i) => e - center[i]), rotation).map((e, i) => e + center[i])),
-    // Scale vectors by scale
-    scale: scale => (polygon) => (polygon.vectors = polygon.vectors.map(v => v.map((e, i) => e * scale[i]))),
     // Move vectors by offset
-    transpose: offset => (polygon) => (polygon.vectors = polygon.vectors.map(v => v.map((e, i) => e + offset[i]))),
+    transpose: offset => polygons => polygons.forEach(polygon => polygon.vectors = polygon.vectors.map(
+      vector => vector.map((e, i) => e + offset[i])
+    )),
+    // Rotate vectors around center by rotation array with radians for x, y and z.
+    rotate: (rotation, center) => polygons => polygons.forEach(polygon => polygon.vectors = polygon.vectors.map(
+      vector => linal.rotate(vector.map((e, i) => e - center[i]), rotation).map((e, i) => e + center[i])
+    )),
+    // Scale vectors by three dimensional scaling factor scale
+    scale: scale => polygons => polygons.forEach(polygon => polygon.vectors = polygon.vectors.map(
+      vector => vector.map((e, i) => e * scale[i])
+    )),
     // Darken the color on surfaces as it deviates from a light source
-    shading: (source, intensity, observer) => polygon => {
+    shading: (source, intensity, observer) => polygons => polygons.forEach(polygon => {
       let normal = linal.normal(polygon.vectors[0], polygon.vectors[1], polygon.vectors[2])
       var dot = linal.dot(normal, source)
       // If surface isn't facing observer, flip it.
       if (Math.acos(linal.dot(normal, observer.map((e, i) => polygon.vectors[0][i] - e))) < Math.PI / 2) dot = -dot
       polygon.color = polygon._color.map(c => Math.round(c - 2 * intensity * Math.acos(dot) / Math.PI))
-    },
-  }
-
-  // Available processors (acts on a group of polygons at a time)
-  const processors = {
+    }),
     // Sort polygons by distance to observer (closest to observer appears last)
     zsort: observer => polygons => {
       polygons.sort((a, b) => {
@@ -69,11 +65,11 @@
             largest[i] = Math.max(largest[i], e) }))
       polygons.forEach(polygon => match(polygon.vectors))
       let offset = smallest.map((e, i) => location[i] - (e + (largest[i] - e) / 2))
-      polygons.forEach(polygon => transforms.transpose(offset)(polygon))
+      transforms.transpose(offset)(polygons)
     },
-    // Wrap a transform as a processor
-    transform: fn => polygons => {
-      polygons.forEach(polygon => fn(polygon))
+    // Bundle several transforms into one
+    bundle: transforms => polygons => {
+      transforms.forEach(transform => transform(polygons))
     },
   }
 
@@ -100,7 +96,7 @@
     },
   }
 
-  // Contract for processors and transforms
+  // Contract for transforms
   function Polygon (vectors, name, color) {
     this.vectors = vectors
     this.name = name
@@ -110,45 +106,38 @@
   // Represents the polygon cluster.
   function Cluster () {
     const _polygons = []
-    const _processors = []
-    const _disposableProcessors = []
 
-    this.add = (vectors, name, color) => {
-      _polygons.push(new Polygon(vectors, name, color))
+    this.add = (...args) => {
+      _polygons.push(new Polygon(...args))
     }
 
-    this.apply = (fn, filter) => {
-      fn(filter ? _polygons.filter(filter) : _polygons)
+    this.apply = (transform, filter) => {
+      transform(filter ? _polygons.filter(filter) : _polygons)
+      return this
     }
 
     this.zsort = (observer, filter) => {
-      this.apply(processors.zsort(observer), filter)
-      return this
+      return this.apply(transforms.zsort(observer), filter)
     }
 
     this.center = (location, filter) => {
-      this.apply(processors.center(location), filter)
-      return this
+      return this.apply(transforms.center(location), filter)
     }
 
     this.scale = (scale, filter) => {
-      this.apply(processors.transform(transforms.scale(scale)), filter)
-      return this
+      return this.apply(transforms.scale(scale), filter)
     }
 
     this.transpose = (offset, filter) => {
-      this.apply(processors.transform(transforms.transpose(offset)), filter)
-      return this
+      return this.apply(transforms.transpose(offset), filter)
     }
 
     this.shading = (source, intensity, observer, filter) => {
-      this.apply(processors.transform(transforms.shading(source, intensity, observer)), filter)
-      return this
+      return this.apply(transforms.shading(source, intensity, observer), filter)
     }
 
     this.rotate = (rotation, center, filter) => {
-      this.apply(processors.transform(transforms.rotate(rotation, center)), filter)
-      return this
+      return this.apply(transforms.rotate(rotation, center), filter)
     }
 
     this.cuboid = (location, size, name, color) => {
@@ -157,8 +146,7 @@
   }
 
   let _constr = () => new Cluster()
-  _constr._processors = processors
-  _constr._transforms = transforms
+  _constr.transforms = transforms
   _constr._Cluster = Cluster
   _constr._Polygon = Polygon
   _constr._linal = linal

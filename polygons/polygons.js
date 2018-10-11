@@ -126,56 +126,37 @@
       _polygons.push(new Polygon(vectors, name, color))
     }
 
-    // Interface for adding processors (not disposable by default)
-    this.use = (fn, disposable, filter) => {
-      if (disposable) {
-        _disposableProcessors.push([fn, filter])
-      } else {
-        _processors.push([fn, filter])
-      }
+    this.apply = (fn, filter) => {
+      fn(filter ? _polygons.filter(filter) : _polygons)
     }
 
-    // Interface for adding transforms (disposable by default)
-    this.transform = (fn, disposable, filter) => {
-      this.use(processors.transform(fn), true, filter)
-    }
-
-    // Apply transforms and processors
-    this.apply = () => {
-      _disposableProcessors.forEach(p => p[0](p[1] ? _polygons.filter(p[1]) : _polygons))
-      _disposableProcessors.length = 0
-
-      _processors.forEach(p => p[0](p[1] ? _polygons.filter(p[1]) : _polygons))
-    }
-
-    // These are shortcuts for adding transforms and processors
     this.zsort = (observer, filter) => {
-      this.use(processors.zsort(observer), filter)
+      this.apply(processors.zsort(observer), filter)
       return this
     }
 
     this.center = (location, filter) => {
-      this.use(processors.center(location), false, filter)
+      this.apply(processors.center(location), filter)
       return this
     }
 
     this.scale = (scale, filter) => {
-      this.transform(transforms.scale(scale), filter)
+      this.apply(processors.transform(transforms.scale(scale)), filter)
       return this
     }
 
     this.transpose = (offset, filter) => {
-      this.transform(transforms.transpose(offset), filter)
+      this.apply(processors.transform(transforms.transpose(offset)), filter)
       return this
     }
 
     this.shading = (source, intensity, observer, filter) => {
-      this.use(processors.transform(transforms.shading(source, intensity, observer)), filter)
+      this.apply(processors.transform(transforms.shading(source, intensity, observer)), filter)
       return this
     }
 
     this.rotate = (rotation, filter) => {
-      this.transform(transforms.rotate(rotation), undefined, filter)
+      this.apply(processors.transform(transforms.rotate(rotation)), filter)
       return this
     }
 

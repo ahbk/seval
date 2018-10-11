@@ -36,7 +36,7 @@ cluster
   .center([0, 0, 0], polygon => polygon.name === 'b')
   .zsort([0, 0, -depth])
   .shading([-1, 0, -1], 40, [0, 0, -depth])
-  .use(draw)
+  .apply(draw)
 
 canvas.ontouchstart = event => {
   var position = [event.changedTouches[0].pageX, event.changedTouches[0].pageY]
@@ -46,7 +46,7 @@ canvas.ontouchstart = event => {
   canvas.ontouchmove = event => {
     move = [event.changedTouches[0].pageX, event.changedTouches[0].pageY].map((e, i) => e - position[i])
     position = [event.changedTouches[0].pageX, event.changedTouches[0].pageY]
-    cluster.rotate([move[1] * 0.01, -move[0] * 0.01, 0]).apply()
+    cluster.rotate([move[1] * 0.01, -move[0] * 0.01, 0])
   }
 
   document.ontouchend = event => {
@@ -63,7 +63,7 @@ canvas.onmousedown = event => {
   canvas.onmousemove = event => {
     move = [event.pageX, event.pageY].map((e, i) => e - position[i])
     position = [event.pageX, event.pageY]
-    cluster.rotate([move[1] * 0.01, -move[0] * 0.01, 0]).apply()
+    cluster.rotate([move[1] * 0.01, -move[0] * 0.01, 0])
   }
 
   document.onmouseup = event => {
@@ -78,8 +78,18 @@ animate()
 function animate () {
   if (play) window.requestAnimationFrame(animate)
   try {
-    cluster.rotate([0.005, 0.005, 0.005], polygon => polygon.name === 'a').apply()
-    cluster.rotate([0.005, 0.005, -0.005], polygon => polygon.name === 'b').apply()
+    cluster
+      .rotate([0.005, 0.005, 0.005], polygon => polygon.name === 'a')
+      .zsort([0, 0, -depth])
+      .shading([-1, 0, -1], 40, [0, 0, -depth])
+      .apply(draw)
+    cluster
+      .rotate(
+        [0.005, 0.005, -0.005],
+        polygon => polygon.name === 'b')
+      .zsort([0, 0, -depth])
+      .shading([-1, 0, -1], 40, [0, 0, -depth])
+      .apply(draw)
   } catch (error) {
     play = false
     console.log('stopped because exception')

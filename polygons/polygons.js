@@ -69,7 +69,13 @@
     },
     // Bundle several transforms into one
     bundle: transforms => polygons => {
-      transforms.forEach(transform => transform(polygons))
+      transforms.forEach(entry => {
+        if (entry[1]) {
+          entry[0](polygons.filter(entry[1]))
+        } else {
+          entry[0](polygons)
+        }
+      })
     },
   }
 
@@ -77,7 +83,6 @@
   const templates = {
     cuboid: (position, size, name, color) => target => {
       // A corner of the cuboid is described with three binary digits (e.g. '101')
-      // The left-most digit is for the x-axis, the middle is for y and the last is z.
       // A zero ('0') means that the corner share location with vector `position` in the axis, so corner '000' is at
       // the same location as `position`.
       // A one ('1') means that the corner is displaced by `size` in the axis, so corner '001' is adjacent to corner
@@ -139,14 +144,11 @@
     this.rotate = (rotation, center, filter) => {
       return this.apply(transforms.rotate(rotation, center), filter)
     }
-
-    this.cuboid = (location, size, name, color) => {
-      templates.cuboid(location, size, name, color)(this.add)
-    }
   }
 
   let _constr = () => new Cluster()
   _constr.transforms = transforms
+  _constr.templates = templates
   _constr._Cluster = Cluster
   _constr._Polygon = Polygon
   _constr._linal = linal

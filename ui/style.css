@@ -1,15 +1,13 @@
-body {
-  background-color: #e7f2ee;
+html, body {
+  margin: 0;
 }
 
-canvas {
-  background-color: white;
+.mrt-container {
+  height: 100vh;
 }
 
-.top {
-  text-align: center;
-}
-
-.canvas-container {
-  text-align: center;
+#mrt-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }

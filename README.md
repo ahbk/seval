@@ -7,7 +7,7 @@ A 3d-animation of a rotating block, [see here](http://seval.io).
 Clone this repository and cd to project root:
 
 ```
-git clone https://github.com/alexh546/seval.git && cd seval
+git clone https://github.com/ahbk/seval.git && cd seval
 ```
 
 ### Prerequisites

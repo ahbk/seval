@@ -1,0 +1,13 @@
+html, body {
+  margin: 0;
+}
+
+.mrt-container {
+  height: 100vh;
+}
+
+#mrt-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

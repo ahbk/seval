@@ -1,4 +1,5 @@
 document.addEventListener("keydown", keydown);
+
 const card = document.getElementsByClassName("card")[0];
 const tasks = [
   ['←', 0],
@@ -12,7 +13,7 @@ const tasks = [
   ['→', 1],
   ['←', 0],
 ];
-var answer;
+var answer, startTime;
 
 nextTask();
 
@@ -31,6 +32,7 @@ function nextTask() {
   let currentTask = tasks.pop();
   answer = currentTask[1];
   card.innerHTML = currentTask[0];
+  startTime = Date.now();
 }
 
 function left(answer) {
@@ -50,21 +52,25 @@ function right(answer) {
 }
 
 function correctLeft() {
-  console.log('correct left swipe');
+  console.log(`correct left swipe (${time()})`);
   nextTask();
 }
 
 function incorrectLeft() {
-  console.log('incorrect left swipe');
+  console.log(`incorrect left swipe (${time()})`);
   nextTask();
 }
 
 function correctRight() {
-  console.log('correct right swipe');
+  console.log(`correct right swipe (${time()})`);
   nextTask();
 }
 
 function incorrectRight() {
-  console.log('incorrect right swipe');
+  console.log(`incorrect right swipe (${time()})`);
   nextTask();
+}
+
+function time() {
+  return Date.now() - startTime;
 }

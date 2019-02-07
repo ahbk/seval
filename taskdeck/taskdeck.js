@@ -12,6 +12,10 @@
       index = typeof index === 'undefined' ? _cards.length : index
       _cards.splice(index, 0, card)
     }
+
+    this.reset = () => {
+      count = 0;
+    }
     
     this.size = () => {
       return _cards.length

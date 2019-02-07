@@ -1,0 +1,12 @@
+.card {
+  margin-top: 10vh;
+  text-align: center;
+}
+
+.hidden {
+  display: none;
+}
+
+.card.active {
+  font-size: 200px;
+}

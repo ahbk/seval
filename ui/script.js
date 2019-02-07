@@ -1,76 +1,47 @@
+let deck = require('../taskdeck/taskdeck')()
+
 document.addEventListener("keydown", keydown);
+const cardElement = document.getElementsByClassName("card")[0];
+var currentPick;
 
-const card = document.getElementsByClassName("card")[0];
 const tasks = [
-  ['←', 0],
-  ['→', 1],
-  ['→', 1],
-  ['→', 1],
-  ['←', 0],
-  ['→', 1],
-  ['←', 0],
-  ['←', 0],
-  ['→', 1],
-  ['←', 0],
-];
-var answer, startTime;
+  [0, '←', 0],
+  [1, '→', 1],
+  [2, '→', 1],
+  [3, '→', 1],
+  [4, '←', 0],
+  [5, '→', 1],
+  [6, '←', 0],
+  [7, '←', 0],
+  [8, '→', 1],
+  [9, '←', 0],
+].map(t => deck.add({id: t[0], description: t[1], key: t[2]}));
 
-nextTask();
+nextTask()
 
 function keydown(e) {
-  if(['f'].includes(e.key)) left(answer);
-  if(['j'].includes(e.key)) right(answer);
+  var response;
+  if(['f'].includes(e.key)) response = 0;
+  if(['j'].includes(e.key)) response = 1;
+  if(typeof response !== 'undefined') {
+    respond(response)
+  }
+}
+
+function respond(response) {
+  let result = currentPick(response)
+  console.log(result)
+  nextTask()
 }
 
 function nextTask() {
-  if(!tasks.length) {
-    card.innerHTML = 'done.';
+  if(!deck.size()) {
+    cardElement.innerHTML = 'done.';
     document.removeEventListener("keydown", keydown);
     console.log('done.');
     return;
   }
-  let currentTask = tasks.pop();
-  answer = currentTask[1];
-  card.innerHTML = currentTask[0];
-  startTime = Date.now();
-}
-
-function left(answer) {
-  if(!answer) {
-    correctLeft()
-  } else {
-    incorrectLeft();
-  }
-}
-
-function right(answer) {
-  if(!answer) {
-    incorrectRight()
-  } else {
-    correctRight();
-  }
-}
-
-function correctLeft() {
-  console.log(`correct left swipe (${time()})`);
-  nextTask();
-}
-
-function incorrectLeft() {
-  console.log(`incorrect left swipe (${time()})`);
-  nextTask();
-}
-
-function correctRight() {
-  console.log(`correct right swipe (${time()})`);
-  nextTask();
-}
-
-function incorrectRight() {
-  console.log(`incorrect right swipe (${time()})`);
-  nextTask();
-}
-
-function time() {
-  return Date.now() - startTime;
+  let task = deck.get();
+  cardElement.innerHTML = task.description;
+  currentPick = deck.pick();
 }

@@ -1,8 +1,8 @@
-let deck = require('../taskdeck/taskdeck')()
+let deck = require('../tryout/deck')();
+let tryout = require('../tryout/tryout')();
 
 document.addEventListener("keydown", keydown);
 const cardElements = document.getElementsByClassName("card");
-var currentPick, next;
 var currentTest = 0;
 
 const tasks = [
@@ -18,50 +18,53 @@ const tasks = [
   [9, '←', 0],
 ];
 
+tryout.load(tasks);
+
+tryout.subscribe(tryout.events.start, start)
+tryout.subscribe(tryout.events.pick, next)
+tryout.subscribe(tryout.events.done, done)
+tryout.subscribe(tryout.events.reset, intro)
+
+function intro() {
+  cardElements[0].classList.remove('hidden');
+  cardElements[2].classList.add('hidden');
+}
+
+function start() {
+  cardElements[0].classList.add('hidden');
+  cardElements[1].classList.remove('hidden');
+}
+
+function next() {
+  cardElements[1].innerHTML = tryout.task().description;
+}
+
+function done() {
+  cardElements[1].classList.add('hidden')
+  cardElements[2].classList.remove('hidden')
+}
+
 function keydown(e) {
-  next = false;
 
   if(' ' === e.key) {
-    if(currentTest === 0) {
-      deck.reset();
-      tasks.map(t => deck.add({id: t[0], description: t[1], key: t[2]}));
-      currentTest = 1;
-      cardElements[0].classList.add('hidden');
-      cardElements[1].classList.remove('hidden');
-      next = true;
+    if(tryout.state === tryout.states.ready) {
+      tryout.start();
+      tryout.pick();
     }
-    if(currentTest === 2) {
-      currentTest = 0;
-      cardElements[2].classList.add('hidden');
-      cardElements[0].classList.remove('hidden');
-      return;
+    if(tryout.state === tryout.states.completed) {
+      tryout.reset();
     }
   }
 
-  if(currentTest === 1) {
-    var response, result;
+  if(tryout.state === tryout.states.started) {
 
     if('f' === e.key) {
-      next = true;
-      result = currentPick(0)
+      tryout.solve(0);
+      tryout.pick();
     }
     if('j' === e.key) {
-      next = true;
-      result = currentPick(1)
-    }
-
-    if(next) {
-      if(!deck.size()) {
-        cardElements[1].classList.add('hidden')
-        cardElements[2].classList.remove('hidden')
-
-        currentTest = 2;
-        currentPick = undefined;
-        return;
-      }
-      let task = deck.get();
-      cardElements[1].innerHTML = task.description;
-      currentPick = deck.pick();
+      tryout.solve(1);
+      tryout.pick();
     }
   }
 }

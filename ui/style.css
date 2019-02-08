@@ -7,6 +7,6 @@
   display: none;
 }
 
-.card.active {
+.card.task {
   font-size: 200px;
 }

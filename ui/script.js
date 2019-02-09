@@ -1,9 +1,17 @@
-let deck = require('../tryout/deck')();
-let tryout = require('../tryout/tryout')();
-
+const deck = require('../tryout/deck')();
+const tryout = require('../tryout/tryout')();
 document.addEventListener("keydown", keydown);
-const cardElements = document.getElementsByClassName("card");
-var currentTest = 0;
+
+import Vue from 'vue';
+const tryoutVue = new Vue({
+  el: '#tryout',
+  data: {
+    state: tryout.states.ready,
+    task: '',
+    solvedTask: '',
+  }
+});
+
 
 const tasks = [
   [0, '←', 0],
@@ -26,22 +34,20 @@ tryout.subscribe(tryout.events.done, done)
 tryout.subscribe(tryout.events.reset, intro)
 
 function intro() {
-  cardElements[0].classList.remove('hidden');
-  cardElements[2].classList.add('hidden');
+  tryoutVue.state = tryout.states.ready
 }
 
 function start() {
-  cardElements[0].classList.add('hidden');
-  cardElements[1].classList.remove('hidden');
+  tryoutVue.state = tryout.states.started
 }
 
 function next() {
-  cardElements[1].innerHTML = tryout.task().description;
+  tryoutVue.solvedTask = tryoutVue.task
+  tryoutVue.task = tryout.task().description;
 }
 
 function done() {
-  cardElements[1].classList.add('hidden')
-  cardElements[2].classList.remove('hidden')
+  tryoutVue.state = tryout.states.completed
 }
 
 function keydown(e) {

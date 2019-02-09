@@ -1,6 +1,17 @@
+[v-cloak] {
+  display: none;
+}
+
+.tryout {
+  text-align: center;
+}
+
+.deck {
+  position: relative;
+}
+
 .card {
   margin-top: 10vh;
-  text-align: center;
 }
 
 .hidden {
@@ -9,4 +20,8 @@
 
 .card.task {
   font-size: 200px;
+}
+
+.card.task.solved {
+  position: absolute;
 }

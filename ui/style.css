@@ -1,25 +1,40 @@
+* {
+  box-sizing: border-box;
+}
+
 [v-cloak] {
   display: none;
 }
 
 #tryout {
-  text-align: center;
+  padding-top: 10vh;
+  height: 90vh;
+  width: 70vh;
+  margin: auto;
+  overflow: hidden;
 }
 
 .deck {
   position: relative;
+  margin: auto;
+
+  /* A8 */
+  height: 74vh;
+  width: 52vh;
 }
 
-.card {
-  margin-top: 10vh;
-}
-
-.hidden {
-  display: none;
-}
-
-.card.task {
-  background: white;
+.task {
   position: absolute;
+  background: white;
+
+  width: 100%;
+  height: 100%;
+
+  border: 5px solid black;
+  border-radius: 1vh;
+
+  padding-top: 40%;
   font-size: 200px;
+  text-align: center;
+  -webkit-backface-visibility: hidden;
 }

@@ -1,28 +1,30 @@
-const deck = require('../tryout/deck')();
-const tryout = require('../tryout/tryout')();
-const anime = require('animejs/lib/anime.js');
-document.addEventListener("keydown", keydown);
+const deck = require('../tryout/deck')()
+const tryout = require('../tryout/tryout')()
+const anime = require('animejs/lib/anime.js')
 
-import Vue from 'vue';
-const tryoutVue = new Vue({
+import Vue from 'vue'
+const ui = new Vue({
   el: '#tryout',
   data: {
-    state: tryout.states.ready,
+    state: 'ready',
     tasks: [],
   },
   methods: {
-    leave: function(el, done) {
+    solve: function(el, done) {
+      el.setAttribute('style', 'z-index: 1')
+      let direction = tryout.task(el.getAttribute('task-id')).response === 0 ? -1 : 1
       anime({
         targets: el,
-        translateX: 250,
+        easing: 'easeOutExpo',
+        translateX: direction * 650,
         duration: 800,
         changeComplete: done,
-      });
+      })
     },
   }
-});
+})
 
-const tasks = [
+tryout.load([
   [0, '←', 0],
   [1, '→', 1],
   [2, '→', 1],
@@ -33,55 +35,42 @@ const tasks = [
   [7, '←', 0],
   [8, '→', 1],
   [9, '←', 0],
-];
+])
 
-tryout.load(tasks);
+tryout.on('start', () => ui.state = 'started')
+tryout.on('done', () => ui.state = 'completed')
 
-tryout.subscribe(tryout.events.start, start)
-tryout.subscribe(tryout.events.pick, next)
-tryout.subscribe(tryout.events.done, done)
-tryout.subscribe(tryout.events.reset, intro)
+tryout.on('reset', () => {
+  ui.state = 'ready'
+  ui.tasks = []
+})
 
-function intro() {
-  tryoutVue.state = tryout.states.ready
-  tryoutVue.tasks = []
-}
-
-function start() {
-  tryoutVue.state = tryout.states.started
-}
-
-function next() {
-  tryoutVue.tasks.unshift(tryout.task())
-  while(tryoutVue.tasks.length > 1) {
-    tryoutVue.tasks.pop()
+tryout.on('pick', () => {
+  ui.tasks.unshift(tryout.task())
+  while(ui.tasks.length > 1) {
+    ui.tasks.pop()
   }
-}
+})
 
-function done() {
-  tryoutVue.state = tryout.states.completed
-}
-
-function keydown(e) {
+document.addEventListener("keydown", function(e) {
   if(' ' === e.key) {
-    if(tryout.state === tryout.states.ready) {
+    if(!tryout.started) {
       tryout.start()
       tryout.pick()
     }
-    if(tryout.state === tryout.states.completed) {
+    if(tryout.completed) {
       tryout.reset()
     }
   }
 
-  if(tryout.state === tryout.states.started) {
-
+  if(tryout.started && !tryout.completed) {
     if('f' === e.key) {
-      tryout.solve(0);
-      tryout.pick();
+      tryout.solve(0)
+      tryout.pick()
     }
     if('j' === e.key) {
-      tryout.solve(1);
-      tryout.pick();
+      tryout.solve(1)
+      tryout.pick()
     }
   }
-}
+})

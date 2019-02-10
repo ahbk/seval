@@ -7,63 +7,50 @@
   function Tryout () {
     const deck = require('../tryout/deck')()
     var _tasks = []
-    var subscribers = {}
-    var _pick
+    var _task
 
-    this.events = {
-      start: 1,
-      pick: 2,
-      solve: 3,
-      done: 4,
-      reset: 5,
+    var observers = {
+      'start': [],
+      'done': [],
+      'reset': [],
+      'pick': [],
+      'solve': [],
     }
 
-    this.states = {
-      ready: 1,
-      started: 2,
-      completed: 3,
-    }
-
-    this.state = this.states.ready
-
-    this.subscribe = (event, fn) => {
-      subscribers[event] = subscribers[event] || []
-      subscribers[event].push(fn)
-    }
-
-    this.notify = (event) => {
-      if(subscribers[event]) {
-        subscribers[event].map(fn => fn())
+    this.on = (event, fn) => {
+      if(typeof fn === 'undefined') {
+        observers[event].map(fn => fn())
+      } else {
+        observers[event].push(fn)
       }
     }
 
     this.start = () => {
-      this.state = this.states.started
-      this.notify(this.events.start)
+      this.on('start')
+      this.started = Date.now()
     }
 
     this.reset = () => {
-      this.state = this.states.ready
-      this.notify(this.events.reset)
+      this.on('reset')
       deck.reset()
-      _tasks.map(t => deck.add({id: t[0], description: t[1], key: t[2]}))
+      this.started = this.completed = undefined
     }
 
-    this.task = () => {
-      return deck.get()
+    this.task = (id) => {
+      return deck.get(id)
     }
 
-    this.pick = () => {
-      this.notify(this.events.pick)
-      _pick = deck.pick()
+    this.pick = (id) => {
+      this.on('pick')
+      _task = deck.pick(id)
     }
 
-    this.solve = (response) => {
-      this.notify(this.events.solve)
-      let result = _pick(response)
-      if(!deck.size()) {
-        this.notify(this.events.done)
-        this.state = this.states.completed
+    this.solve = (response, id) => {
+      this.on('solve')
+      let result = _task.solve(response, id)
+      if(!deck.remaining()) {
+        this.on('done')
+        this.completed = Date.now()
       }
     }
 

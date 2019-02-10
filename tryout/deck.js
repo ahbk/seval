@@ -4,54 +4,71 @@
 }(this, function () {
   'use strict'
 
-  function Deck () {
-    const _cards = []
-    var count = 0
+  function Task(id, description, key) {
+    this.id = id
+    this.description = description
+    this.key = key
 
-    this.add = (card, index) => {
-      index = typeof index === 'undefined' ? _cards.length : index
-      _cards.splice(index, 0, card)
+    this.picked = this.solved = this.order = undefined
+
+    var observers = {
+      'pick': [],
+      'solve': [],
+    }
+
+    this.on = (event, fn) => {
+      if(typeof fn === 'undefined') {
+        observers[event].map(fn => fn())
+      } else {
+        observers[event].push(fn)
+      }
+    }
+
+    this.pick = (order) => {
+      this.picked = Date.now()
+      this.order = order
+      this.on('pick')
+      return this
+    }
+
+    this.solve = (response) => {
+      this.response = response
+      this.solved = Date.now()
+      this.on('solve')
+      return this
+    }
+  }
+
+  function Deck() {
+    const _tasks = []
+    const _map = {}
+
+    var top = 0
+
+    this.add = (task, index) => {
+      index = typeof index === 'undefined' ? _tasks.length : index
+      _map[task.id] = index
+      _tasks.splice(index, 0, new Task(task.id, task.description, task.key))
     }
 
     this.reset = () => {
-      count = 0;
+      top = 0
     }
     
-    this.size = () => {
-      return _cards.length
+    this.remaining = () => {
+      return _tasks.length - top
     }
 
-    this.get = (index) => {
-      index = typeof index === 'undefined' ? 0 : index
-      return _cards[index]
+    this.get = (id) => {
+      let index = typeof id === 'undefined' ? top : _map[id]
+      return _tasks[index]
     }
 
-    this.discard = (index) => {
-      index = typeof index === 'undefined' ? 0 : index
-      _cards.splice(index, 1)
-    }
-
-    this.replace = (card, index) => {
-      _cards.splice(index, 1, card)
-    }
-
-    this.pick = (index) => {
-      index = typeof index === 'undefined' ? 0 : index
-      let card = _cards.splice(index, 1)[0]
-      let picked = Date.now()
-
-      count++
-      
-      return function(response) {
-        return {
-          id: card.id,
-          count: count,
-          picked: picked,
-          solved: Date.now(),
-          description: card.description,
-          key: card.key,
-          response: response,
-        }
+    this.pick = (id) => {
+      if(this.remaining()) {
+        let index = typeof id === 'undefined' ? top : _map[id]
+        top++
+        return _tasks[index].pick(top)
       }
     }
   }

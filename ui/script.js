@@ -1,5 +1,6 @@
 const deck = require('../tryout/deck')();
 const tryout = require('../tryout/tryout')();
+const anime = require('animejs/lib/anime.js');
 document.addEventListener("keydown", keydown);
 
 import Vue from 'vue';
@@ -7,11 +8,19 @@ const tryoutVue = new Vue({
   el: '#tryout',
   data: {
     state: tryout.states.ready,
-    task: '',
-    solvedTask: '',
+    tasks: [],
+  },
+  methods: {
+    leave: function(el, done) {
+      anime({
+        targets: el,
+        translateX: 250,
+        duration: 800,
+        changeComplete: done,
+      });
+    },
   }
 });
-
 
 const tasks = [
   [0, '←', 0],
@@ -35,6 +44,7 @@ tryout.subscribe(tryout.events.reset, intro)
 
 function intro() {
   tryoutVue.state = tryout.states.ready
+  tryoutVue.tasks = []
 }
 
 function start() {
@@ -42,8 +52,10 @@ function start() {
 }
 
 function next() {
-  tryoutVue.solvedTask = tryoutVue.task
-  tryoutVue.task = tryout.task().description;
+  tryoutVue.tasks.unshift(tryout.task())
+  while(tryoutVue.tasks.length > 1) {
+    tryoutVue.tasks.pop()
+  }
 }
 
 function done() {
@@ -51,14 +63,13 @@ function done() {
 }
 
 function keydown(e) {
-
   if(' ' === e.key) {
     if(tryout.state === tryout.states.ready) {
-      tryout.start();
-      tryout.pick();
+      tryout.start()
+      tryout.pick()
     }
     if(tryout.state === tryout.states.completed) {
-      tryout.reset();
+      tryout.reset()
     }
   }
 

@@ -2,7 +2,7 @@
   display: none;
 }
 
-.tryout {
+#tryout {
   text-align: center;
 }
 
@@ -19,9 +19,7 @@
 }
 
 .card.task {
-  font-size: 200px;
-}
-
-.card.task.solved {
+  background: white;
   position: absolute;
+  font-size: 200px;
 }

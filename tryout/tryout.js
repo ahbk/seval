@@ -61,7 +61,6 @@
     this.solve = (response) => {
       this.notify(this.events.solve)
       let result = _pick(response)
-      console.log(result)
       if(!deck.size()) {
         this.notify(this.events.done)
         this.state = this.states.completed

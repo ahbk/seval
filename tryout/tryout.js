@@ -1,6 +1,6 @@
 ;(function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory()
-    : typeof define === 'function' && define.amd ? define(factory) : global.polygons = factory() // eslint-disable-line
+    : typeof define === 'function' && define.amd ? define(factory) : global.tryout = factory() // eslint-disable-line
 }(this, function () {
   'use strict'
 

@@ -1,22 +1,10 @@
 {
   "dependencies": {
-    "animejs": "^3.0.1",
     "compression": "^1.7.3",
     "express": "^4.16.3",
-    "helmet": "^3.13.0",
-    "lib": "^4.0.0",
-    "vue": "^2.6.4"
+    "helmet": "^3.13.0"
   },
   "devDependencies": {
-    "babel-core": "^6.26.3",
-    "babel-preset-env": "^1.7.0",
-    "mocha": "^5.2.0",
-    "parcel": "^1.11.0"
-  },
-  "scripts": {
-    "dev": "parcel watch ui/index.html --out-dir ui/dist & node index.js"
-  },
-  "alias": {
-    "vue": "./node_modules/vue/dist/vue.js"
+    "mocha": "^5.2.0"
   }
 }

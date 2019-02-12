@@ -11,30 +11,15 @@
 
     this.picked = this.solved = this.order = undefined
 
-    var observers = {
-      'pick': [],
-      'solve': [],
-    }
-
-    this.on = (event, fn) => {
-      if(typeof fn === 'undefined') {
-        observers[event].map(fn => fn())
-      } else {
-        observers[event].push(fn)
-      }
-    }
-
     this.pick = (order) => {
       this.picked = Date.now()
       this.order = order
-      this.on('pick')
       return this
     }
 
     this.solve = (response) => {
       this.response = response
       this.solved = Date.now()
-      this.on('solve')
       return this
     }
   }

@@ -1,8 +1,9 @@
 const deck = require('../tryout/deck')()
 const tryout = require('../tryout/tryout')()
 const anime = require('animejs/lib/anime.js')
-
+const socket = new WebSocket(`ws://${ window.location.host.split(':')[0] }:8000/ws/result/`)
 import Vue from 'vue'
+
 const ui = new Vue({
   el: '#tryout',
   data: {
@@ -37,20 +38,37 @@ tryout.load([
   [9, '←', 0],
 ])
 
-tryout.on('start', () => ui.state = 'started')
-tryout.on('done', () => ui.state = 'completed')
+socket.onmessage = (e) => {
+  var data = JSON.parse(e.data)
+  console.log(data)
+}
 
-tryout.on('reset', () => {
+tryout.onstart = (e) => {
+  let payload = {
+    tryout: {
+      started: tryout.started,
+    },
+  }
+  socket.send(JSON.stringify(payload))
+  ui.state = 'started'
+}
+
+tryout.ondone = (e) => {
+  ui.state = 'completed'
+}
+
+tryout.onreset = (e) => {
   ui.state = 'ready'
   ui.tasks = []
-})
+}
 
-tryout.on('pick', () => {
-  ui.tasks.unshift(tryout.task())
-  while(ui.tasks.length > 1) {
-    ui.tasks.pop()
-  }
-})
+tryout.onsolve = (e) => {
+  ui.tasks.pop()
+}
+
+tryout.onpick = (e) => {
+  ui.tasks.unshift(e.task)
+}
 
 document.addEventListener("keydown", function(e) {
   if(' ' === e.key) {

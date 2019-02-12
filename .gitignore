@@ -3,3 +3,6 @@ src.tar.gz
 *.retry
 .cache
 ui/dist/
+venv
+__pycache__
+db.sqlite3

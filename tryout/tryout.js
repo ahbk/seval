@@ -9,31 +9,15 @@
     var _tasks = []
     var _task
 
-    var observers = {
-      'start': [],
-      'done': [],
-      'reset': [],
-      'pick': [],
-      'solve': [],
-    }
-
-    this.on = (event, fn) => {
-      if(typeof fn === 'undefined') {
-        observers[event].map(fn => fn())
-      } else {
-        observers[event].push(fn)
-      }
-    }
-
     this.start = () => {
-      this.on('start')
       this.started = Date.now()
+      if(this.onstart) this.onstart({})
     }
 
     this.reset = () => {
-      this.on('reset')
       deck.reset()
       this.started = this.completed = undefined
+      if(this.onreset) this.onreset({})
     }
 
     this.task = (id) => {
@@ -41,16 +25,17 @@
     }
 
     this.pick = (id) => {
-      this.on('pick')
       _task = deck.pick(id)
+      if(this.onpick) this.onpick({ task: _task })
     }
 
     this.solve = (response, id) => {
-      this.on('solve')
-      let result = _task.solve(response, id)
+      _task.solve(response, id)
+      if(this.onsolve) this.onsolve({ task: _task })
+
       if(!deck.remaining()) {
-        this.on('done')
         this.completed = Date.now()
+        if(this.ondone) this.ondone({})
       }
     }
 

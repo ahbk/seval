@@ -13,7 +13,7 @@
           <p>Om pilen pekar vänster, tryck på f, om pilen pekar höger, tryck på j.</p>
           <p>Tryck på mellanslag för att starta testet.</p>
         </div>
-        <transition-group v-on:leave="solve">
+        <transition-group name="deck" v-on:leave="solve">
           <div
             class="task"
             v-if="state == 'started'"

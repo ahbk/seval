@@ -14,12 +14,16 @@ const ui = new Vue({
     solve: function(el, done) {
       el.setAttribute('style', 'z-index: 1')
       let direction = tryout.task(el.getAttribute('task-id')).response === 0 ? -1 : 1
+      tryout.pick()
       anime({
         targets: el,
         easing: 'easeOutExpo',
-        translateX: direction * 650,
-        duration: 800,
-        changeComplete: done,
+        translateX: direction * 600,
+        opacity: 0,
+        duration: 500,
+        changeComplete: () => {
+          done()
+        },
       })
     },
   }
@@ -84,11 +88,9 @@ document.addEventListener("keydown", function(e) {
   if(tryout.started && !tryout.completed) {
     if('f' === e.key) {
       tryout.solve(0)
-      tryout.pick()
     }
     if('j' === e.key) {
       tryout.solve(1)
-      tryout.pick()
     }
   }
 })

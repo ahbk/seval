@@ -38,3 +38,11 @@
   text-align: center;
   -webkit-backface-visibility: hidden;
 }
+
+.deck-enter-active {
+  transition: opacity 500ms;
+}
+
+.deck-enter {
+  opacity: 0;
+}

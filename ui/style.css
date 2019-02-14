@@ -2,6 +2,10 @@
   box-sizing: border-box;
 }
 
+body {
+  overflow: hidden;
+}
+
 [v-cloak] {
   display: none;
 }
@@ -11,7 +15,6 @@
   height: 90vh;
   width: 70vh;
   margin: auto;
-  overflow: hidden;
 }
 
 .deck {
@@ -37,12 +40,4 @@
   font-size: 200px;
   text-align: center;
   -webkit-backface-visibility: hidden;
-}
-
-.deck-enter-active {
-  transition: opacity 500ms;
-}
-
-.deck-enter {
-  opacity: 0;
 }

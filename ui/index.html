@@ -13,13 +13,13 @@
           <p>Om pilen pekar vänster, tryck på f, om pilen pekar höger, tryck på j.</p>
           <p>Tryck på mellanslag för att starta testet.</p>
         </div>
-        <transition-group name="deck" v-on:leave="solve">
+        <transition-group name="deck" v-on:enter="pick" v-on:leave="solve">
           <div
             class="task"
             v-if="state == 'started'"
             v-for="task in tasks"
-            :key="task.id"
-            :task-id="task.id"
+            :key="task.order"
+            :response="task.response"
             >
             {{ task.description }}
           </div>

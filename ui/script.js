@@ -1,100 +1,120 @@
-const deck = require('../tryout/deck')()
-const tryout = require('../tryout/tryout')()
-const anime = require('animejs/lib/anime.js')
-const socket = new WebSocket(`ws://${ window.location.host.split(':')[0] }:8000/tryout/`)
+import anime from 'animejs/lib/anime.js'
 import Vue from 'vue'
+import { Subject, fromEvent, concat } from 'rxjs'
+import { webSocket } from 'rxjs/webSocket'
+import { first, filter, map, tap, delay, takeWhile, repeat } from 'rxjs/operators'
 
-const ui = new Vue({
+const store = webSocket(`ws://${ window.location.host.split(':')[0] }:8000/tryout/`)
+store.subscribe()
+
+const vm = new Vue({
   el: '#tryout',
   data: {
     state: 'ready',
     tasks: [],
   },
   methods: {
+    pick: function(el, done) {
+      el.setAttribute('style', 'opacity: 0')
+      anime({
+        targets: el,
+        easing: 'linear',
+        opacity: 1,
+        duration: 300,
+        changeComplete: done,
+      })
+    },
     solve: function(el, done) {
       el.setAttribute('style', 'z-index: 1')
-      let direction = tryout.task(el.getAttribute('task-id')).response === 0 ? -1 : 1
-      tryout.pick()
+      let direction = el.getAttribute('response') === '0' ? -1 : 1
       anime({
         targets: el,
         easing: 'easeOutExpo',
         translateX: direction * 600,
         opacity: 0,
-        duration: 500,
-        changeComplete: () => {
-          done()
-        },
+        rotate: direction * 10,
+        duration: 1000,
+        changeComplete: done,
       })
     },
   }
 })
 
-tryout.load([
-  [0, '←', 0],
-  [1, '→', 1],
+const tasks = [
+  [1, '←', 0],
   [2, '→', 1],
-  [3, '→', 1],
-  [4, '←', 0],
-  [5, '→', 1],
-  [6, '←', 0],
-  [7, '←', 0],
-  [8, '→', 1],
-  [9, '←', 0],
-])
+  [2, '→', 1],
+  [2, '→', 1],
+  [1, '←', 0],
+  [2, '→', 1],
+  [1, '←', 0],
+  [1, '←', 0],
+  [2, '→', 1],
+  [1, '←', 0],
+]
 
-socket.onmessage = (e) => {
-  var data = JSON.parse(e.data)
-  console.log(data)
-}
+var currentTask = 0
 
-socket.onclose = (e) => {
-  console.log('socket closed.')
-}
-
-tryout.onstart = (e) => {
-  let payload = {
-    tryout: {
-      started: tryout.started,
-    },
+function nextTask() {
+  let t = tasks[currentTask]
+  currentTask++
+  return {
+    id: t[0],
+    order: currentTask,
+    description: t[1],
+    key: t[2],
+    picked: undefined,
+    solved: undefined,
+    response: undefined,
   }
-  socket.send(JSON.stringify(payload))
-  ui.state = 'started'
 }
 
-tryout.ondone = (e) => {
-  ui.state = 'completed'
-}
+const keydown$ = fromEvent(document, 'keydown')
 
-tryout.onreset = (e) => {
-  ui.state = 'ready'
-  ui.tasks = []
-}
+store.next({'asdf':'asdf'})
+store.subscribe(msg => console.log(msg))
 
-tryout.onsolve = (e) => {
-  ui.tasks.pop()
-}
+let ready$ = keydown$.pipe(
+  filter(e => vm.state === 'ready'),
+  first(e => e.key === ' '),
+  tap(e => vm.state = 'started'),
+  delay(100),
+  tap(() => {
+    let task = nextTask()
+    task.picked = Date.now()
+    vm.tasks.push(task)
+  }),
+)
 
-tryout.onpick = (e) => {
-  ui.tasks.unshift(e.task)
-}
+let started$ = keydown$.pipe(
+  takeWhile(e => vm.state === 'started'),
+  map(e => { return {'f': 0, 'j': 1}[e.key] }),
+  filter(r => typeof r !== 'undefined'),
+  filter(() => vm.tasks[0] && !vm.tasks[0].solved),
+  tap((response) => {
+    vm.tasks[0].solved = Date.now()
+    vm.tasks[0].response = response
+    Vue.nextTick(() => vm.tasks.pop())
+  }),
+  delay(100),
+  filter(() => {
+    if(currentTask === tasks.length) vm.state = 'completed'
+    return vm.state !== 'completed'
+  }),
+  tap(() => {
+    let task = nextTask()
+    task.picked = Date.now()
+    vm.tasks.push(task)
+  }),
+)
 
-document.addEventListener("keydown", function(e) {
-  if(' ' === e.key) {
-    if(!tryout.started) {
-      tryout.start()
-      tryout.pick()
-    }
-    if(tryout.completed) {
-      tryout.reset()
-    }
-  }
+let completed$ = keydown$.pipe(
+  filter(e => vm.state === 'completed'),
+  first(e => e.key === ' '),
+  tap(e => {
+    vm.state = 'ready'
+    currentTask = 0
+  }),
+)
 
-  if(tryout.started && !tryout.completed) {
-    if('f' === e.key) {
-      tryout.solve(0)
-    }
-    if('j' === e.key) {
-      tryout.solve(1)
-    }
-  }
-})
+let tryout$ = concat(ready$, started$, completed$).pipe(repeat()).subscribe()

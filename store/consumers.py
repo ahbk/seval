@@ -1,13 +1,17 @@
-from channels.generic.websocket import WebsocketConsumer
+from channels.generic.websocket import JsonWebsocketConsumer
+from . import models
 import json
 
-class TryoutConsumer(WebsocketConsumer):
+class TryoutConsumer(JsonWebsocketConsumer):
     def connect(self):
         self.accept()
 
     def disconnect(self, close_code):
         pass
 
-    def receive(self, text_data):
-        text_data_json = json.loads(text_data)
-        self.send(text_data=json.dumps(text_data_json))
+    def receive_json(self, content):
+        if not self.scope['session'].session_key:
+            self.scope['session'].create()
+
+        content['ok'] = str(self.scope['session'].session_key)
+        self.send_json(content)

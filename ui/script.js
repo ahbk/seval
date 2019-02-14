@@ -1,7 +1,7 @@
 const deck = require('../tryout/deck')()
 const tryout = require('../tryout/tryout')()
 const anime = require('animejs/lib/anime.js')
-const socket = new WebSocket(`ws://${ window.location.host.split(':')[0] }:8000/ws/result/`)
+const socket = new WebSocket(`ws://${ window.location.host.split(':')[0] }:8000/tryout/`)
 import Vue from 'vue'
 
 const ui = new Vue({
@@ -45,6 +45,10 @@ tryout.load([
 socket.onmessage = (e) => {
   var data = JSON.parse(e.data)
   console.log(data)
+}
+
+socket.onclose = (e) => {
+  console.log('socket closed.')
 }
 
 tryout.onstart = (e) => {

@@ -1,8 +1,8 @@
 import anime from 'animejs/lib/anime.js'
 import Vue from 'vue'
-import { Subject, fromEvent, concat } from 'rxjs'
+import { Subject, fromEvent, concat, range, zip } from 'rxjs'
 import { webSocket } from 'rxjs/webSocket'
-import { first, filter, map, tap, delay, takeWhile, repeat } from 'rxjs/operators'
+import { first, filter, map, tap, delay, takeWhile, repeat, delayWhen } from 'rxjs/operators'
 
 const store = webSocket(`ws://${ window.location.host.split(':')[0] }:8000/tryout/`)
 store.subscribe()
@@ -11,6 +11,8 @@ const vm = new Vue({
   el: '#tryout',
   data: {
     state: 'ready',
+    started: undefined,
+    completed: undefined,
     tasks: [],
   },
   methods: {
@@ -71,8 +73,7 @@ function nextTask() {
 
 const keydown$ = fromEvent(document, 'keydown')
 
-store.next({'asdf':'asdf'})
-store.subscribe(msg => console.log(msg))
+store.subscribe(msg => console.log(msg['notok']))
 
 let ready$ = keydown$.pipe(
   filter(e => vm.state === 'ready'),
@@ -83,6 +84,16 @@ let ready$ = keydown$.pipe(
     let task = nextTask()
     task.picked = Date.now()
     vm.tasks.push(task)
+
+    vm.state = 'started'
+    vm.started = Date.now()
+
+    store.next({
+      create: 'Tryout',
+      with: {
+        started: vm.started,
+      },
+    })
   }),
 )
 
@@ -94,17 +105,40 @@ let started$ = keydown$.pipe(
   tap((response) => {
     vm.tasks[0].solved = Date.now()
     vm.tasks[0].response = response
+
+    store.next({
+      update: 'Solve',
+      where: {
+        picked: vm.tasks[0].picked,
+      },
+      with: {
+        solved: vm.tasks[0].solved,
+        response: vm.tasks[0].response,
+      },
+    })
+
     Vue.nextTick(() => vm.tasks.pop())
   }),
   delay(100),
-  filter(() => {
-    if(currentTask === tasks.length) vm.state = 'completed'
-    return vm.state !== 'completed'
-  }),
   tap(() => {
-    let task = nextTask()
-    task.picked = Date.now()
-    vm.tasks.push(task)
+    if(currentTask !== tasks.length) {
+      let task = nextTask()
+      task.picked = Date.now()
+      vm.tasks.push(task)
+      return
+    }
+    vm.state = 'completed'
+    vm.completed = Date.now()
+
+    store.next({
+      update: 'Tryout',
+      where: {
+        started: vm.started,
+      },
+      with: {
+        completed: vm.completed,
+      },
+    })
   }),
 )
 

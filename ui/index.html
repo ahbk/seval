@@ -8,7 +8,7 @@
   <body>
     <div id="tryout" v-cloak>
       <div class="deck">
-        <div class="intro" v-if="state == 'ready'">
+        <div class="intro" v-if="!started && !completed">
           <h1>Piltest</h1>
           <p>Om pilen pekar vänster, tryck på f, om pilen pekar höger, tryck på j.</p>
           <p>Tryck på mellanslag för att starta testet.</p>
@@ -16,7 +16,7 @@
         <transition-group name="deck" v-on:enter="pick" v-on:leave="solve">
           <div
             class="task"
-            v-if="state == 'started'"
+            v-if="started && !completed"
             v-for="task in tasks"
             :key="task.order"
             :response="task.response"
@@ -24,7 +24,7 @@
             {{ task.description }}
           </div>
         </transition-group>
-        <div class="done" v-if="state == 'completed'">
+        <div class="done" v-if="started && completed">
           <h1>Klar!</h1>
           <p>Du kom etta.</p>
           <p>Tryck på mellanslag för att komma tillbaka till början.</p>

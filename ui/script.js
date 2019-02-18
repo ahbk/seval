@@ -1,19 +1,24 @@
-import anime from 'animejs/lib/anime.js'
 import Vue from 'vue'
-import { Subject, fromEvent, concat, range, zip } from 'rxjs'
+import { Observable, fromEvent } from 'rxjs'
+import { map, filter, delay } from 'rxjs/operators'
 import { webSocket } from 'rxjs/webSocket'
-import { first, filter, map, tap, delay, takeWhile, repeat, delayWhen } from 'rxjs/operators'
+import anime from 'animejs/lib/anime.js'
 
-const store = webSocket(`ws://${ window.location.host.split(':')[0] }:8000/tryout/`)
-store.subscribe()
+const _tasks = []
+const keydown$ = fromEvent(document, 'keydown')
+const next$ = property$('round').pipe(filter(v => v))
+const store$ = webSocket(`ws://${ window.location.host.split(':')[0] }:8000/tryout/`)
 
+// Set up view model
 const vm = new Vue({
   el: '#tryout',
   data: {
-    state: 'ready',
+    id: undefined,
     started: undefined,
     completed: undefined,
     tasks: [],
+    round: 0,
+    rounds: 3,
   },
   methods: {
     pick: function(el, done) {
@@ -42,113 +47,128 @@ const vm = new Vue({
   }
 })
 
-const tasks = [
-  [1, '←', 0],
-  [2, '→', 1],
-  [2, '→', 1],
-  [2, '→', 1],
-  [1, '←', 0],
-  [2, '→', 1],
-  [1, '←', 0],
-  [1, '←', 0],
-  [2, '→', 1],
-  [1, '←', 0],
-]
+// request tasks
+store$.next({
+  fn: 'Task.read'
+})
 
-var currentTask = 0
+// set state to started (from ready)
+keydown$.pipe(
+  filter(e => e.key === ' ' && !vm.started && !vm.completed),
+).subscribe(start)
 
-function nextTask() {
-  let t = tasks[currentTask]
-  currentTask++
-  return {
-    id: t[0],
-    order: currentTask,
-    description: t[1],
-    key: t[2],
-    picked: undefined,
-    solved: undefined,
-    response: undefined,
-  }
+// set state to ready (from completed)
+keydown$.pipe(
+  filter(e => e.key === ' ' && vm.started && vm.completed),
+).subscribe(reset)
+
+// solve current task (task0)
+keydown$.pipe(
+  filter(e => vm.tasks[0] && !vm.tasks[0].solved),
+  map(e => { return {'f': '0', 'j': '1'}[e.key] }),
+  filter(r => r != null && vm.started && !vm.completed),
+).subscribe(solve)
+
+// pick a task or complete on next round
+next$.pipe(delay(100)).subscribe(round => round > vm.rounds ? complete() : pick(round))
+
+// arriving tasks
+store$.pipe(
+  filter(r => r.fn === 'Task.read'),
+  map(r => r.ok),
+).subscribe(r => r.forEach(t => _tasks.push(t)))
+
+// arriving id
+store$.pipe(
+  filter(r => r.fn === 'Tryout.create'),
+  map(r => r.ok),
+).subscribe(id => vm.id = id)
+
+// make a vue-property rxjs-observable
+function property$(prop) {
+  return new Observable(subscriber => {
+    let cb = (newVal, oldVal) => {
+      subscriber.next(newVal)
+    }
+    vm.$watch(prop, cb)
+  })
 }
 
-const keydown$ = fromEvent(document, 'keydown')
+// start tryout
+function start() {
+  vm.started = Date.now()
+  vm.round = 1
 
-store.subscribe(msg => console.log(msg['notok']))
+  store$.next({
+    fn: 'Tryout.create',
+    with: {
+      started: vm.started,
+    },
+  })
+}
 
-let ready$ = keydown$.pipe(
-  filter(e => vm.state === 'ready'),
-  first(e => e.key === ' '),
-  tap(e => vm.state = 'started'),
-  delay(100),
-  tap(() => {
-    let task = nextTask()
-    task.picked = Date.now()
-    vm.tasks.push(task)
+// pick next task
+function pick(round) {
+  let t = _tasks[Math.floor(Math.random()*_tasks.length)]
+  t.order = round
+  t.solved = undefined
+  t.response = undefined
+  t.picked = Date.now()
 
-    vm.state = 'started'
-    vm.started = Date.now()
+  vm.tasks.push(t)
+}
 
-    store.next({
-      create: 'Tryout',
-      with: {
-        started: vm.started,
-      },
-    })
-  }),
-)
+// reset tryout
+function reset() {
+  vm.id = undefined
+  vm.started = undefined
+  vm.completed = undefined
+  vm.round = 0
+}
 
-let started$ = keydown$.pipe(
-  takeWhile(e => vm.state === 'started'),
-  map(e => { return {'f': 0, 'j': 1}[e.key] }),
-  filter(r => typeof r !== 'undefined'),
-  filter(() => vm.tasks[0] && !vm.tasks[0].solved),
-  tap((response) => {
-    vm.tasks[0].solved = Date.now()
-    vm.tasks[0].response = response
+// solve current task
+function solve(response) {
+  let t = vm.tasks[0]
+  t.solved = Date.now()
+  t.response = response
 
-    store.next({
-      update: 'Solve',
-      where: {
-        picked: vm.tasks[0].picked,
-      },
-      with: {
-        solved: vm.tasks[0].solved,
-        response: vm.tasks[0].response,
-      },
-    })
+  store$.next({
+    fn: 'Solve.create',
+    with: {
+      tryout_id: vm.id,
+      task_id: t.id,
+      picked: t.picked,
+      solved: t.solved,
+      response: response,
+      order: t.order,
+      correct: t.key === response ? 1 : 0,
+    },
+  })
 
-    Vue.nextTick(() => vm.tasks.pop())
-  }),
-  delay(100),
-  tap(() => {
-    if(currentTask !== tasks.length) {
-      let task = nextTask()
-      task.picked = Date.now()
-      vm.tasks.push(task)
-      return
-    }
-    vm.state = 'completed'
-    vm.completed = Date.now()
+  Vue.nextTick(() => {
+    vm.tasks.pop()
+    vm.round++
+  })
+}
 
-    store.next({
-      update: 'Tryout',
-      where: {
-        started: vm.started,
-      },
-      with: {
-        completed: vm.completed,
-      },
-    })
-  }),
-)
+// complete tryout
+function complete() {
+  vm.completed = Date.now()
 
-let completed$ = keydown$.pipe(
-  filter(e => vm.state === 'completed'),
-  first(e => e.key === ' '),
-  tap(e => {
-    vm.state = 'ready'
-    currentTask = 0
-  }),
-)
+  store$.next({
+    fn: 'Tryout.update',
+    where: {
+      id: vm.id,
+    },
+    with: {
+      completed: vm.completed,
+    },
+  })
 
-let tryout$ = concat(ready$, started$, completed$).pipe(repeat()).subscribe()
+  store$.next({
+    fn: 'Tryout.summarize',
+    where: {
+      id: vm.id,
+    },
+  })
+}

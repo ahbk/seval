@@ -2,21 +2,11 @@ from datetime import datetime
 from django.db import models
 from django.conf import settings
 
-def process(content, scope):
-    if not scope['session'].session_key:
-        scope['session'].create()
-
-    for function in ['create', 'update']:
-        cls = {
-            'Solve': Solve, 'Tryout': Tryout,
-            }.get(content.get(function))
-
-        if not cls:
-            continue
-
-        getattr(cls, function)(cls, content, scope)
 
 class EpochField(models.DateTimeField):
+    def from_db_value(self, value, expression, connection):
+        return value.timestamp() * 1000
+
     def to_python(self, value):
         if not value is None and not isinstance(value, datetime):
             value = datetime.fromtimestamp(value/1000.0)
@@ -24,11 +14,18 @@ class EpochField(models.DateTimeField):
         return value
 
 
-
 class Task(models.Model):
     representation = models.TextField()
     description = models.TextField()
     key = models.CharField(max_length=255)
+
+    def read(content, scope):
+        return [{
+            'id': t.id,
+            'representation': t.representation,
+            'description': t.description,
+            'key': t.key
+            } for t in Task.objects.all()]
 
 
 class Tryout(models.Model):
@@ -37,15 +34,31 @@ class Tryout(models.Model):
     session = models.CharField(max_length=255, null=True, blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
 
-    def create(cls, content, scope):
-        scope['tryout'] = cls.objects.create(
+    def summarize(content, scope):
+        tryout = (Tryout.objects
+                .annotate(
+                    models.Count('solve'),
+                    correct=models.Sum('solve__correct'),
+                    )
+                .get(pk=content['where']['id']))
+
+        return {
+                'id': tryout.id,
+                'time': tryout.completed - tryout.started,
+                'tasks': tryout.solve__count,
+                'correct': tryout.correct,
+                }
+
+
+    def create(content, scope):
+        return Tryout.objects.create(
             session = scope['session'],
             user = scope['user'].id,
             **content.get('with', {})
-        )
+        ).pk
 
-    def update(cls, content, scope):
-        cls.objects.filter(
+    def update(content, scope):
+        return Tryout.objects.filter(
             session = scope['session'],
             user = scope['user'].id,
             **content.get('where', {})
@@ -59,22 +72,15 @@ class Solve(models.Model):
     solved = EpochField(null=True, blank=True)
     response = models.CharField(max_length=255, null=True, blank=True)
     order = models.IntegerField(null=True, blank=True)
+    correct = models.IntegerField(null=True, blank=True)
 
-    def create(cls, content, scope):
+    def create(content, scope):
         print(content)
-        cls.objects.create(
-            tryout = Tryout.objects.get(
-                user=scope['user'].id,
-                session=scope['session']
-            ),
+        return Solve.objects.create(
             **content.get('with', {}),
-        )
+        ).pk
 
     def update(cls, content, scope):
-        cls.objects.filter(
-            tryout = Tryout.objects.get(
-                user=scope['user'].id,
-                session=scope['session']
-            ),
+        Solve.objects.filter(
             **content.get('where', {})
         ).update(**content.get('with', {}))

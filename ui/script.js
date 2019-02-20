@@ -1,8 +1,8 @@
 import Vue from 'vue'
 import { Observable, fromEvent } from 'rxjs'
-import { map, filter, delay } from 'rxjs/operators'
+import { tap, map, filter, delay } from 'rxjs/operators'
 import { webSocket } from 'rxjs/webSocket'
-import anime from 'animejs/lib/anime.js'
+import tryout from './tryout.vue'
 
 const _tasks = []
 const keydown$ = fromEvent(document, 'keydown')
@@ -12,6 +12,8 @@ const store$ = webSocket(`ws://${ window.location.host.split(':')[0] }:8000/tryo
 // Set up view model
 const vm = new Vue({
   el: '#tryout',
+  template: '<tryout :started="started" :tasks="tasks" :completed="completed"/>',
+  components: { tryout },
   data: {
     id: undefined,
     started: undefined,
@@ -19,32 +21,8 @@ const vm = new Vue({
     tasks: [],
     round: 0,
     rounds: 3,
+    test: 'asdf',
   },
-  methods: {
-    pick: function(el, done) {
-      el.setAttribute('style', 'opacity: 0')
-      anime({
-        targets: el,
-        easing: 'linear',
-        opacity: 1,
-        duration: 300,
-        changeComplete: done,
-      })
-    },
-    solve: function(el, done) {
-      el.setAttribute('style', 'z-index: 1')
-      let direction = el.getAttribute('response') === '0' ? -1 : 1
-      anime({
-        targets: el,
-        easing: 'easeOutExpo',
-        translateX: direction * 600,
-        opacity: 0,
-        rotate: direction * 10,
-        duration: 1000,
-        changeComplete: done,
-      })
-    },
-  }
 })
 
 // request tasks

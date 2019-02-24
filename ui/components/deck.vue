@@ -3,7 +3,6 @@
     <transition-group
       name="deck"
       v-on:enter="onpick"
-      v-on:leave="onsolve"
       >
       <task
         class="task"
@@ -21,45 +20,133 @@
 import Vue from 'vue'
 import anime from 'animejs/lib/anime.js'
 import task from './task.vue'
-import { Subject, combineLatest } from 'rxjs'
-import { map, filter, delay, switchMap, take } from 'rxjs/operators'
-import { store$, tasks$, keydown$, tryout$ } from '../observables.js'
+import { Subject, combineLatest, zip, from, interval } from 'rxjs'
+import { tap, map, filter, delay, take, bufferCount } from 'rxjs/operators'
+import { store$, tasks$, keydown$, tryout$, xswipe$of } from '../observables.js'
 
-var _tasks
-const round$ = new Subject()
-const vm = {
-  tasks: [],
-  rounds: 3,
-}
-
-let solve$ = combineLatest(
-  tryout$,
-  round$.pipe(
-    switchMap(round => keydown$.pipe(
-      map(e => ({'f': '0', 'j': '1'}[e.key])),
-      filter(r => r != null),
-      take(1),
-      map(response => [round, response])
-    ))
-  )
-)
-
-solve$.subscribe(([tryout, [round, response]]) => solve(tryout, round - 1, response))
-solve$.pipe(delay(200)).subscribe(([tryout, [round, response]]) => {
-  if(vm.rounds && round > vm.rounds) {
-    end()
-  } else {
-    pick(round)
-  }
-})
-
+// Request some tasks
 store$.next({
   fn: 'Task.read'
 })
 
-tasks$.subscribe(r => {
-  _tasks = r
+var _tasks
+const vm = {
+  tasks: [],
+  rounds: 10,
+}
+
+// Emits true every time the component is mounted
+const mounted$ = new Subject()
+
+// Emits a task object and a task element when a new task is picked, group with bufferCount.
+const pick$ = new Subject()
+
+// Emits a task object when a task is solved
+const solve$ = new Subject()
+
+// When tasks are loaded, component is mounted and a tryout is created: stash tasks and pick first task.
+zip(tasks$, mounted$, tryout$).subscribe(([tasks, m, t]) => {
+  _tasks = tasks
   pick(1)
+})
+
+// Get next task, mark it as picked and emit on pick$
+// Vue will emit element as soon as it's loaded
+function pick(round) {
+  let t = Object.assign({}, _tasks[Math.floor(Math.random()*_tasks.length)])
+  t.order = round
+  t.solved = undefined
+  t.response = undefined
+  t.picked = Date.now()
+
+  vm.tasks.push(t)
+
+  pick$.next(t)
+}
+
+// Let user interact with task and emit solve on solve-like behavior
+pick$.pipe(bufferCount(2)).subscribe(([task, el]) => {
+
+  let xswipe$ = xswipe$of(el)
+
+  let xswipeSubscriber = xswipe$.subscribe(grab)
+
+  let typeSubscriber = keydown$.pipe(
+    map(e => ({'f': 'left', 'j': 'right'}[e.key])),
+    filter(r => r != null),
+    take(1),
+  ).subscribe(direction => {
+    grab({
+      dx: 0,
+      direction: direction,
+      swipe: true,
+      last: true,
+    })
+  })
+
+  function grab(op) {
+    let rs = 3
+    let seek = Math.abs(op.dx) / 2
+    let target = targets[op.direction]
+
+    target.seek(seek)
+
+    if(!op.last) return
+
+    if(op.swipe) {
+      target.finished.then(() => solve$.next())
+      target.play()
+      solve$.next([task, op.direction])
+      typeSubscriber.unsubscribe()
+      xswipeSubscriber.unsubscribe()
+    } else {
+      interval(1).pipe(take(Math.floor(seek/rs))).subscribe({
+        next(t) { target.seek(seek - t * rs) },
+        complete() {
+          target.seek(0)
+          xswipe$.subscribe(grab)
+        },
+      })
+    }
+  }
+
+  // These are animations for left and right response respectively
+  let targets = {
+    right: anime({
+      targets: el,
+      easing: 'easeOutExpo',
+      duration: 1000,
+      autoplay: false,
+      translateX: 600,
+      opacity: 0,
+      rotate: 10,
+    }),
+    left: anime({
+      targets: el,
+      easing: 'easeOutExpo',
+      duration: 1000,
+      autoplay: false,
+      translateX: -600,
+      opacity: 0,
+      rotate: -10,
+    })
+  }
+})
+
+// Solve task
+combineLatest(tryout$, solve$.pipe(filter(v => v))).subscribe(([tryout, [task, response]]) => solve(tryout, task, response))
+
+// Pop solved task when post-solve stuff is done
+solve$.pipe(bufferCount(2)).subscribe(v => {
+  vm.tasks.shift()
+})
+
+solve$.pipe(filter(v => v), delay(100)).subscribe(([task, response]) => {
+  if(vm.rounds && task.order === vm.rounds) {
+    end()
+  } else {
+    pick(task.order + 1)
+  }
 })
 
 function end() {
@@ -67,19 +154,7 @@ function end() {
   document.dispatchEvent(new Event('end-tryout'))
 }
 
-function pick(round) {
-  let t = _tasks[Math.floor(Math.random()*_tasks.length)]
-  t.order = round
-  t.solved = undefined
-  t.response = undefined
-  t.picked = Date.now()
-
-  vm.tasks.push(t)
-  round$.next(round + 1)
-}
-
-function solve(tryout, round, response) {
-  let t = vm.tasks[0]
+function solve(tryout, t, response) {
   t.solved = Date.now()
   t.response = response
 
@@ -94,10 +169,6 @@ function solve(tryout, round, response) {
       order: t.order,
       correct: t.key === response ? 1 : 0,
     },
-  })
-
-  Vue.nextTick(() => {
-    vm.tasks.pop()
   })
 }
 
@@ -116,25 +187,15 @@ export default {
         opacity: 1,
         duration: 300,
         changeComplete: e => {
-          done()
+          pick$.next(el)
         },
       })
     },
-    onsolve: function(el, done) {
-      el.setAttribute('style', 'z-index: 1')
-      let direction = el.getAttribute('response') === '0' ? -1 : 1
-      anime({
-        targets: el,
-        easing: 'easeOutExpo',
-        translateX: direction * 600,
-        opacity: 0,
-        rotate: direction * 10,
-        duration: 1000,
-        changeComplete: e => {
-          done()
-        },
-      })
-    },
+  },
+  mounted: function() {
+    this.$nextTick(function() {
+      mounted$.next(true)
+    })
   },
 }
 </script>

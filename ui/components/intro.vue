@@ -15,7 +15,7 @@ import { store$, ready$ } from '../observables'
 
 const vm = { 
   title: 'Piltest',
-  description: 'Om pilen pekar vänster, tryck på f, om pilen pekar höger, tryck på j.',
+  description: 'Om pilen pekar vänster, swipa vänster, om pilen pekar höger, swipa höger.',
   state: 'loading',
   button: {
     text: {

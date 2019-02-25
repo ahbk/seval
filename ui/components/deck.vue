@@ -20,58 +20,85 @@
 import Vue from 'vue'
 import anime from 'animejs/lib/anime.js'
 import task from './task.vue'
-import { Subject, combineLatest, zip, from, interval } from 'rxjs'
-import { tap, map, filter, delay, take, bufferCount } from 'rxjs/operators'
-import { store$, tasks$, keydown$, tryout$, xswipe$of } from '../observables.js'
-
-// Request some tasks
-store$.next({
-  fn: 'Task.read'
-})
+import { Subject, combineLatest, zip, from, interval, fromEvent, range, concat, of } from 'rxjs'
+import { tap, map, filter, delay, take, bufferCount, switchMap, concatMap } from 'rxjs/operators'
+import { store$, battery$, xswipe$of } from '../observables.js'
 
 var _tasks
+
 const vm = {
   tasks: [],
-  rounds: 10,
+  rounds: 3,
 }
+
+let animeparams = {
+  right: {
+    easing: 'easeInSine',
+    duration: 200,
+    autoplay: false,
+    translateX: 600,
+    opacity: 0,
+    rotate: 10,
+  },
+  left: {},
+}
+
+Object.assign(animeparams.left, animeparams.right)
+animeparams.left.translateX = -animeparams.right.translateX
+animeparams.left.rotate = -animeparams.right.rotate
+
+// Emits tryout id when created
+const tryoutid$ = store$.pipe(
+  filter(r => r.fn === 'Tryout.start'),
+  map(r => r.ok),
+)
+
+// Emits solve when added
+const solveadd$ = store$.pipe(
+  filter(r => r.fn === 'Solve.add' && r.ok),
+  map(r => r.order),
+)
 
 // Emits true every time the component is mounted
 const mounted$ = new Subject()
 
-// Emits a task object and a task element when a new task is picked, group with bufferCount.
-const pick$ = new Subject()
-
 // Emits a task object when a task is solved
 const solve$ = new Subject()
 
-// When tasks are loaded, component is mounted and a tryout is created: stash tasks and pick first task.
-zip(tasks$, mounted$, tryout$).subscribe(([tasks, m, t]) => {
-  _tasks = tasks
-  pick(1)
-})
+// Emits tasks when tasks are loaded, component is mounted and a tryout is created.
+const task$ = zip(battery$, mounted$, tryoutid$).pipe(
+  switchMap(([battery, _, tryoutid, round]) => zip(from(battery.tasks), range(1, 3)).pipe(
+  ), ([battery, _, tryoutid], [task, round]) => {
+    task.order = round
+    task.tryout = tryoutid
+    task.picked = task.solved = task.reponse = undefined
+    return task
+  }),
+  concatMap(task => concat(of(task), solve$.pipe(take(1)))),
+)
 
 // Get next task, mark it as picked and emit on pick$
 // Vue will emit element as soon as it's loaded
-function pick(round) {
-  let t = Object.assign({}, _tasks[Math.floor(Math.random()*_tasks.length)])
-  t.order = round
-  t.solved = undefined
-  t.response = undefined
-  t.picked = Date.now()
-
-  vm.tasks.push(t)
-
-  pick$.next(t)
-}
+task$.pipe(filter(task => !task.picked), delay(200)).subscribe(task => {
+  task.picked = Date.now()
+  vm.tasks.push(task)
+})
 
 // Let user interact with task and emit solve on solve-like behavior
-pick$.pipe(bufferCount(2)).subscribe(([task, el]) => {
+function openforsolve(el) {
+  let task = vm.tasks[0]
+
+  // These are animations for left and right response respectively
+  animeparams.right.targets = animeparams.left.targets = el
+  let targets = {
+    right: anime(animeparams.right),
+    left: anime(animeparams.left),
+  }
 
   let xswipe$ = xswipe$of(el)
+  let xswipesub = xswipe$.subscribe(grab)
 
-  let xswipeSubscriber = xswipe$.subscribe(grab)
-
-  let typeSubscriber = keydown$.pipe(
+  let typesub = fromEvent(document, 'keydown').pipe(
     map(e => ({'f': 'left', 'j': 'right'}[e.key])),
     filter(r => r != null),
     take(1),
@@ -91,14 +118,17 @@ pick$.pipe(bufferCount(2)).subscribe(([task, el]) => {
 
     target.seek(seek)
 
-    if(!op.last) return
+    if(!op.last) { return }
 
     if(op.swipe) {
-      target.finished.then(() => solve$.next())
       target.play()
-      solve$.next([task, op.direction])
-      typeSubscriber.unsubscribe()
-      xswipeSubscriber.unsubscribe()
+
+      task.response = {left: 0, right: 1}[op.direction]
+      task.solved = Date.now()
+      solve$.next(task)
+
+      typesub.unsubscribe()
+      xswipesub.unsubscribe()
     } else {
       interval(1).pipe(take(Math.floor(seek/rs))).subscribe({
         next(t) { target.seek(seek - t * rs) },
@@ -109,68 +139,25 @@ pick$.pipe(bufferCount(2)).subscribe(([task, el]) => {
       })
     }
   }
-
-  // These are animations for left and right response respectively
-  let targets = {
-    right: anime({
-      targets: el,
-      easing: 'easeOutExpo',
-      duration: 1000,
-      autoplay: false,
-      translateX: 600,
-      opacity: 0,
-      rotate: 10,
-    }),
-    left: anime({
-      targets: el,
-      easing: 'easeOutExpo',
-      duration: 1000,
-      autoplay: false,
-      translateX: -600,
-      opacity: 0,
-      rotate: -10,
-    })
-  }
-})
-
-// Solve task
-combineLatest(tryout$, solve$.pipe(filter(v => v))).subscribe(([tryout, [task, response]]) => solve(tryout, task, response))
+}
 
 // Pop solved task when post-solve stuff is done
-solve$.pipe(bufferCount(2)).subscribe(v => {
+solve$.pipe(delay(300)).subscribe(v => {
   vm.tasks.shift()
 })
 
-solve$.pipe(filter(v => v), delay(100)).subscribe(([task, response]) => {
-  if(vm.rounds && task.order === vm.rounds) {
-    end()
-  } else {
-    pick(task.order + 1)
-  }
-})
-
-function end() {
-  _tasks = undefined
-  document.dispatchEvent(new Event('end-tryout'))
-}
-
-function solve(tryout, t, response) {
-  t.solved = Date.now()
-  t.response = response
-
+// Store solved task
+solve$.subscribe(task => {
   store$.next({
-    fn: 'Solve.create',
-    with: {
-      tryout_id: tryout,
-      task_id: t.id,
-      picked: t.picked,
-      solved: t.solved,
-      response: response,
-      order: t.order,
-      correct: t.key === response ? 1 : 0,
-    },
+    fn: 'Solve.add',
+    tryout_id: task.tryout,
+    task_id: task.id,
+    picked: task.picked,
+    solved: task.solved,
+    response: task.response,
+    order: task.order,
   })
-}
+})
 
 export default {
   name: 'deck',
@@ -187,7 +174,7 @@ export default {
         opacity: 1,
         duration: 300,
         changeComplete: e => {
-          pick$.next(el)
+          openforsolve(el)
         },
       })
     },
@@ -206,7 +193,7 @@ export default {
   margin: auto;
 
   /* A8 */
-  height: 74vh;
-  width: 52vh;
+  height: 92vh;
+  width: 92vw;
 }
 </style>

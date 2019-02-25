@@ -1,85 +1,45 @@
 <template>
   <div class="tryout">
-    <fail v-if="error" :error="error"></fail>
-    <intro v-else-if="intro"></intro>
-    <deck v-else-if="deck"></deck>
-    <done v-else-if="done"></done>
+    <component v-bind:is="state"></component>
   </div>
 </template>
 
 <script>
 import Vue from 'vue'
+import loading from './loading.vue'
 import intro from './intro.vue'
 import deck from './deck.vue'
 import done from './done.vue'
 import fail from './fail.vue'
-import { filter } from 'rxjs/operators'
-import { store$, start$, keydown$, end$ } from '../observables'
+import { combineLatest } from 'rxjs'
+import { filter, map } from 'rxjs/operators'
+import { store$, battery$, tryout$ } from '../observables'
 
 const vm = {
-  id: undefined,
-  started: false,
-  ended: false,
-  error: false,
+  state: 'loading',
 }
 
-store$.subscribe({ error(err) { vm.error = 'Servern som skulle langa fram testet svarade inte.' } })
+store$.next({
+  fn: 'Battery.get',
+  code: 'mrt-pair-swipe',
+})
 
-// set state to started (from ready)
-start$.subscribe(start)
-end$.subscribe(complete)
+battery$.subscribe(_ => { vm.state = 'intro' })
 
-// set state to ready (from ended)
-keydown$.pipe(
-  filter(e => e.key === ' ' && vm.started && vm.ended),
-).subscribe(reset)
-
-// start tryout
-function start() {
-  vm.started = Date.now()
+combineLatest(tryout$.pipe(filter(e => e === 'start')), battery$).subscribe(([e, battery]) => {
+  vm.state = 'deck'
 
   store$.next({
-    fn: 'Tryout.create',
-    with: {
-      started: vm.started,
-    },
+    fn: 'Tryout.start',
+    started: Date.now(),
+    battery: battery.id,
   })
-}
-
-// reset tryout
-function reset() {
-  _tasks = undefined
-  vm.id = undefined
-  vm.started = false
-  vm.ended = false
-  vm.round = 0
-}
-
-// complete tryout
-function complete() {
-  vm.ended = Date.now()
-
-  store$.next({
-    fn: 'Tryout.update',
-    where: {
-      id: vm.id,
-    },
-    with: {
-      completed: vm.ended,
-    },
-  })
-
-  store$.next({
-    fn: 'Tryout.summarize',
-    where: {
-      id: vm.id,
-    },
-  })
-}
+})
 
 export default {
   name: 'tryout',
   components: {
+    loading,
     intro,
     deck,
     done,
@@ -88,20 +48,14 @@ export default {
   data () {
     return vm
   },
-  computed: {
-    intro: function() { return !this.started && !this.ended },
-    deck: function() { return this.started && !this.ended },
-    done: function() { return this.started && this.ended },
-  },
 }
 </script>
 
 <style lang="css">
 .tryout {
-  padding-top: 10vh;
-  height: 90vh;
+  padding: 10px 7px 3px 7px;
+  height: 100vh;
   max-width: 70vh;
   margin: auto;
 }
-
 </style>

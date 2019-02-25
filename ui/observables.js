@@ -1,24 +1,15 @@
-import { Observable, fromEvent, zip, combineLatest, merge, from } from 'rxjs'
+import { Subject, Observable, fromEvent, zip, combineLatest, merge, from } from 'rxjs'
 import { tap, map, filter, delay, take, switchMap, scan, takeWhile } from 'rxjs/operators'
 import { webSocket } from 'rxjs/webSocket'
 
-export const keydown$ = fromEvent(document, 'keydown')
-export const start$ = fromEvent(document, 'start-tryout')
-export const end$ = fromEvent(document, 'end-tryout')
 export const store$ = webSocket(`ws://${ window.location.host.split(':')[0] }:8000/tryout/`)
-export const ready$ = store$.pipe(filter(r => r.fn === 'Task.read'))
-export const tasks$ = store$.pipe(filter(r => r.fn === 'Task.read'), map(r => r.ok))
-export const tryout$ = store$.pipe(filter(r => r.fn === 'Tryout.create'), map(r => r.ok))
-
-export const touchstart$of = el => (fromEvent(el || document, 'touchstart'))
-export const touchmove$of = el => (fromEvent(el || document, 'touchmove'))
-export const touchend$of = el => (fromEvent(el || document, 'touchend'))
-export const touchcancel$of = el => (fromEvent(el || document, 'touchcancel'))
-export const touchchange$of = el => merge(touchmove$of(el), touchend$of(el), touchcancel$of(el))
+export const tryout$ = new Subject()
+export const battery$ = store$.pipe(filter(r => r.ok && r.fn === 'Battery.get'), map(r => r.ok))
 
 export const xswipe$of = el => fromEvent(el, 'touchstart').pipe(
 
   /* Take only the first changed touch of the first touchstart-event */
+  tap(e => e.preventDefault()),
   take(1),
   switchMap(e => from(e.changedTouches).pipe(take(1))),
 
@@ -34,6 +25,7 @@ export const xswipe$of = el => fromEvent(el, 'touchstart').pipe(
   ).pipe(
 
     // Get all changed touches from the touchmove
+    tap(e => e.preventDefault()),
     switchMap(e => from(e.changedTouches).pipe(
 
       // Filter out moves that doesn't belong to the started touch

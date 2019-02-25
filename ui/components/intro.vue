@@ -11,11 +11,14 @@
 
 <script>
 import Vue from 'vue'
-import { store$, ready$ } from '../observables'
+import { Subject, zip } from 'rxjs'
+import { filter, map } from 'rxjs/operators'
+import { store$, tryout$, battery$ } from '../observables'
 
+const mounted$ = new Subject()
 const vm = { 
-  title: 'Piltest',
-  description: 'Om pilen pekar vänster, swipa vänster, om pilen pekar höger, swipa höger.',
+  title: '',
+  description: '',
   state: 'loading',
   button: {
     text: {
@@ -26,11 +29,14 @@ const vm = {
   },
 }
 
-ready$.subscribe(r => {
+battery$.subscribe(r => {
   vm.state = 'ready'
-  Vue.nextTick(() => {
-    document.getElementById('start').focus()
-  })
+  vm.title = r.title
+  vm.description = r.instructions
+})
+
+zip(mounted$, battery$).subscribe(() => {
+  document.getElementById('start').focus()
 })
 
 export default {
@@ -43,11 +49,13 @@ export default {
   methods: {
     start: function() {
       this.state = 'starting'
-      document.dispatchEvent(new Event('start-tryout'))
+      tryout$.next('start')
     },
   },
-  mounted: function() {
-    this.state = 'loading'
+  mounted() {
+    Vue.nextTick(() => {
+      mounted$.next()
+    })
   },
 }
 </script>
@@ -55,6 +63,7 @@ export default {
 <style lang="css">
 .intro {
   text-align: center;
+  padding: 0 20px 0 20px;
 }
 
 .intro button {

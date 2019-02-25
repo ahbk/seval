@@ -10,7 +10,6 @@ class TryoutConsumer(JsonWebsocketConsumer):
         pass
 
 
-
     def receive_json(self, content):
         fn = models
         for p in content['fn'].split('.'):

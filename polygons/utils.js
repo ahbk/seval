@@ -11,6 +11,22 @@ export const linal = {
   ].reduce((acc, cur) => linal.transform(acc, cur), a),
 }
 
+export const extension = polygons => {
+  let ext = [
+    polygons[0].vectors[0].slice(),
+    polygons[0].vectors[0].slice(),
+  ]
+
+  polygons.forEach(polygon => polygon.vectors.forEach(vector => {
+    vector.forEach((e, i) => {
+      ext[0][i] = Math.min(ext[0][i], e)
+      ext[1][i] = Math.max(ext[1][i], e)
+    })
+  }))
+
+  return ext
+}
+
 export const vscalar = v => {
   return v instanceof Array ? v : Array(3).fill(v)
 }

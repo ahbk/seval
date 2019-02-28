@@ -3,7 +3,7 @@
     <h1>{{ title }}</h1>
     <p>{{ description }}</p>
     <br />
-    <button id="start" :disabled="state !== 'ready'" @click="start">
+    <button ref="start" :disabled="state !== 'ready'" @click="start">
       {{ button.text[state] }}
     </button>
   </div>
@@ -11,32 +11,24 @@
 
 <script>
 import Vue from 'vue'
-import { Subject, zip } from 'rxjs'
-import { filter, map } from 'rxjs/operators'
-import { store$, tryout$, battery$ } from '../observables'
+import { Subject, combineLatest } from 'rxjs'
+import { battery$, runner$ } from '../controller'
 
-const mounted$ = new Subject()
-const vm = { 
-  title: '',
-  description: '',
-  state: 'loading',
-  button: {
-    text: {
-      loading: 'Laddar test...',
-      ready: 'Starta testet',
-      starting: 'Startar testet...',
-    },
-  },
-}
+let mounted$ = new Subject()
+let start$ = new Subject()
 
-battery$.subscribe(r => {
+combineLatest(battery$, mounted$).subscribe(([battery, vm]) => {
   vm.state = 'ready'
-  vm.title = r.title
-  vm.description = r.instructions
-})
+  vm.title = battery.title
+  vm.description = battery.instructions
 
-zip(mounted$, battery$).subscribe(() => {
-  document.getElementById('start').focus()
+  vm.$nextTick(() => {
+    vm.$refs.start.focus()
+  })
+
+  start$.subscribe(vm => {
+    runner$.next({ start: Date.now() })
+  })
 })
 
 export default {
@@ -44,17 +36,28 @@ export default {
   props: [ ],
   components: { },
   data () {
-    return vm
+    return { 
+      title: '',
+      description: '',
+      state: 'loading',
+      button: {
+        text: {
+          loading: 'Laddar test...',
+          ready: 'Starta testet',
+          starting: 'Startar testet...',
+        },
+      },
+    }
   },
   methods: {
     start: function() {
       this.state = 'starting'
-      tryout$.next('start')
+      start$.next(this)
     },
   },
-  mounted() {
+  mounted: function() {
     Vue.nextTick(() => {
-      mounted$.next()
+      mounted$.next(this)
     })
   },
 }

@@ -1,45 +1,42 @@
 <template>
   <div class="loading">
-    <p>Laddar test...</p>
+    <p>Laddar...</p>
     <canvas id="loading-canvas" width="100" height="100"></canvas>
   </div>
 </template>
 
 <script>
-import Vue from 'vue'
-import { Subject } from 'rxjs'
+import Cluster from '../../polygons/cluster'
 import { rotate, scale, center, zsort, shading } from '../../polygons/transforms'
 import { cuboid } from '../../polygons/templates'
 import { projections } from '../../polygons/utils'
-import Cluster from '../../polygons/cluster'
 
-const mounted$ = new Subject()
+let cluster = new Cluster()
+let camera = [0, 0, -500]
+let perspective = projections.perspective(camera)
+let transform = [
+  rotate([.02, .01, .005]),
+  zsort(camera),
+  shading([1, -1, -1], 40, camera),
+]
 
-mounted$.subscribe(m => {
+var play = true
+
+cluster.polygons = cuboid([0, 0, 0], 1, '#ECECEC')
+cluster.apply(scale(50), center())
+
+function animate() {
+  if (play) window.requestAnimationFrame(animate)
+  cluster.apply(...transform)
+}
+
+function show() {
   let canvas = document.getElementById('loading-canvas')
   let context = canvas.getContext('2d')
-  let cluster = new Cluster()
-  let camera = [0, 0, -500]
-  let perspective = projections.perspective(camera)
-  var play = true
 
   context.translate(canvas.width/2, canvas.height/2)
 
-  cluster.polygons = cuboid([0, 0, 0], 1, '#ECECEC')
-  cluster.apply(scale(50), center())
-  cluster.onchange = draw
-
-  function animate(t) {
-    if (play) window.requestAnimationFrame(animate)
-    cluster.apply(
-      rotate([.02, .01, .005]),
-      zsort(camera),
-      shading([1, -1, -1], 40, camera),
-    )
-  }
-  animate(0)
-
-  function draw(polygons) {
+  cluster.onchange = (polygons) => {
     context.clearRect(-canvas.width/2, -canvas.height/2, canvas.width, canvas.height)
 
     polygons.forEach(polygon => {
@@ -52,7 +49,7 @@ mounted$.subscribe(m => {
       context.fill()
     })
   }
-})
+}
 
 export default {
   name: 'loading',
@@ -61,7 +58,8 @@ export default {
   },
   mounted: function() {
     this.$nextTick(function() {
-      mounted$.next(true)
+      animate()
+      show()
     })
   }
 }

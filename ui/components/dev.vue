@@ -6,8 +6,6 @@
 
 <script>
 import deck from './deck.vue'
-import touch from './touch.vue'
-import { store$ } from '../observables.js'
 
 export default {
   name: 'dev',

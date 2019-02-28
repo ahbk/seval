@@ -1,4 +1,4 @@
-import { linal, vscalar } from './utils'
+import { linal, vscalar, extension } from './utils'
 
 // Move vectors by offset
 export const transpose = offset => polygons => polygons.forEach(polygon => polygon.vectors = polygon.vectors.map(
@@ -7,7 +7,7 @@ export const transpose = offset => polygons => polygons.forEach(polygon => polyg
 
 // Rotate vectors around center by rotation array with radians for x, y and z.
 export const rotate = (rotation, center) => {
-  center = vscalar(center || 0)
+  center = center || [0, 0, 0]
   return polygons => {
     polygons.forEach(polygon => {
       polygon.vectors = polygon.vectors.map(vector => linal.rotate(vector.map((e, i) => e - center[i]), rotation).map((e, i) => e + center[i]))
@@ -46,20 +46,12 @@ export const zsort = observer => polygons => {
   })
 }
 
+// Scale the cluster to fit in box
 export const fit = (box) => {
   box = vscalar(box || 1)
   return (polygons) => {
-    let smallest = polygons[0].vectors[0].slice()
-    let largest = polygons[0].vectors[0].slice()
-
-    let match = (vectors) => vectors.forEach(vector => vector.forEach((e, i) => {
-      smallest[i] = Math.min(smallest[i], e)
-      largest[i] = Math.max(largest[i], e)
-    }))
-
-    polygons.forEach(polygon => match(polygon.vectors))
-
-    let size = smallest.map((e, i) => largest[i] - e)
+    let ext = extension(polygons)
+    let size = ext[0].map((e, i) => ext[1][i] - e)
     let _scale = Math.min(...size.map((e, i) => box[i]/e))
     if(_scale < 1) scale(_scale)(polygons)
   }
@@ -67,20 +59,11 @@ export const fit = (box) => {
 
 // Center the cluster in origin
 export const center = (location) => {
-  location = vscalar(location || 0)
+  location = location || [0, 0, 0]
 
   return (polygons) => {
-    let smallest = polygons[0].vectors[0].slice()
-    let largest = polygons[0].vectors[0].slice()
-
-    let match = (vectors) => vectors.forEach(vector => vector.forEach((e, i) => {
-      smallest[i] = Math.min(smallest[i], e)
-      largest[i] = Math.max(largest[i], e)
-    }))
-
-    polygons.forEach(polygon => match(polygon.vectors))
-
-    let offset = smallest.map((e, i) => location[i] - (e + (largest[i] - e) / 2))
+    let ext = extension(polygons)
+    let offset = ext[0].map((e, i) => location[i] - (e + (ext[1][i] - e) / 2))
     transpose(offset)(polygons)
   }
 }

@@ -19,24 +19,29 @@
 <script>
 import anime from 'animejs/lib/anime.js'
 import task from './task.vue'
-import { Subject, zip, combineLatest } from 'rxjs'
-import { delay, tap } from 'rxjs/operators'
+import { Subject, zip } from 'rxjs'
+import { delay } from 'rxjs/operators'
 import { pick$, solve$ } from '../controller'
 import { solve } from '../interactions'
 
 const mounted$ = new Subject()
 const picked$ = new Subject()
+const tasks = []
 
-combineLatest(pick$, mounted$).pipe(
-  delay(200),
-).subscribe(([task, vm]) => {
-  vm.tasks.push(task)
+mounted$.subscribe(vm => {
+  vm.tasks = tasks
 })
 
-combineLatest(solve$, mounted$).pipe(
+pick$.pipe(
+  delay(200),
+).subscribe(task => {
+  tasks.push(task)
+})
+
+solve$.pipe(
   delay(300),
-).subscribe(([task, vm]) => {
-  vm.tasks.shift()
+).subscribe(task => {
+  tasks.shift()
 })
 
 zip(pick$, picked$).pipe(

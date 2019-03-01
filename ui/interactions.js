@@ -1,5 +1,5 @@
 import anime from 'animejs/lib/anime.js'
-import { fromEvent, interval } from 'rxjs'
+import { fromEvent, interval, from, merge } from 'rxjs'
 import { map, filter, take, tap, switchMap, scan, takeWhile } from 'rxjs/operators'
 
 export function solve(task, element, callback) {

@@ -1,4 +1,5 @@
 import datetime
+import numpy as np
 from django.db import models
 from django.conf import settings
 
@@ -41,7 +42,7 @@ class Tryout(models.Model):
 
     def get(content, scope):
         tryout = Tryout.objects.get(pk=content['id'])
-        return {
+        result = {
             'id': tryout.pk,
             'started': tryout.started.timestamp() * 1e3,
             'ended': tryout.ended.timestamp() * 1e3,
@@ -51,6 +52,10 @@ class Tryout(models.Model):
                 },
             'solves': [ Solve.as_dict(s) for s in tryout.solve_set.all() ]
             }
+
+        result['score'] = sum([s['score'] for s in result['solves']])
+
+        return result
 
     def start(content, scope):
         return Tryout.objects.create(
@@ -98,9 +103,19 @@ class Solve(models.Model):
             'id': solve.pk,
             'picked': solve.picked.timestamp() * 1e3,
             'solved': solve.solved.timestamp() * 1e3,
+            'time': (solve.solved - solve.picked).total_seconds() * 1e3,
             'response': solve.response,
             'order': solve.order,
             'correct': solve.response == solve.task.key,
             'task': Task.as_dict(solve.task),
+            'score': Solve.score(solve),
             }
+
+    def score(solve):
+        time = (solve.solved - solve.picked).total_seconds()
+
+        def gaussian(x,x0,sigma):
+            return np.exp(-np.power((x - x0)/sigma, 2.)/2.)
+
+        return {True: 100, False: -100}[solve.response == solve.task.key] * round(gaussian(time, 0, 5), 2)
 

@@ -3,21 +3,21 @@
     <h1>{{ title }}</h1>
     <p>{{ description }}</p>
     <br />
-    <button ref="start" :disabled="state !== 'ready'" @click="start">
+    <button class="button" ref="start" :disabled="state !== 'ready'" @click="start">
       {{ button.text[state] }}
     </button>
   </div>
 </template>
 
 <script>
-import Vue from 'vue'
-import { Subject, combineLatest } from 'rxjs'
+import { Subject } from 'rxjs'
+import { tap, withLatestFrom } from 'rxjs/operators'
 import { battery$, runner$ } from '../controller'
 
 let mounted$ = new Subject()
 let start$ = new Subject()
 
-combineLatest(battery$, mounted$).subscribe(([battery, vm]) => {
+mounted$.pipe(withLatestFrom(battery$)).subscribe(([vm, battery]) => {
   vm.state = 'ready'
   vm.title = battery.title
   vm.description = battery.instructions
@@ -34,7 +34,6 @@ combineLatest(battery$, mounted$).subscribe(([battery, vm]) => {
 export default {
   name: 'intro',
   props: [ ],
-  components: { },
   data () {
     return { 
       title: '',
@@ -56,7 +55,7 @@ export default {
     },
   },
   mounted: function() {
-    Vue.nextTick(() => {
+    this.$nextTick(() => {
       mounted$.next(this)
     })
   },
@@ -67,33 +66,5 @@ export default {
 .intro {
   text-align: center;
   padding: 0 20px 0 20px;
-}
-
-.intro button {
-  background-color: #28a745;
-  border: 0;
-  color: white;
-  padding: 15px 32px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.intro button:hover {
-  cursor: pointer;
-  background-color: #218838;
-}
-
-.intro button:disabled {
-  opacity: .65;
-  cursor: auto;
-}
-
-.intro button:focus {
-  box-shadow: 0 0 0 0.2rem rgba(40,167,69,.5);
-}
-
-.intro button:active {
-  background-color: #1e7e34;
 }
 </style>

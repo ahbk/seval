@@ -1,5 +1,5 @@
 import { Subject, zip, from, range, concat, of, combineLatest } from 'rxjs'
-import { filter, map, switchMap, concatMap, take, delay, tap, delayWhen, mergeAll, bufferCount, takeUntil } from 'rxjs/operators'
+import { filter, map, switchMap, concatMap, take, delay, tap, delayWhen, mergeAll, bufferCount, takeUntil, materialize } from 'rxjs/operators'
 import { webSocket } from 'rxjs/webSocket'
 
 
@@ -34,7 +34,7 @@ const tryout$ = store$.pipe(
 const battery$ = store$.pipe(
   filter(r => r.ok && r.fn === 'Battery.get'),
   map(r => r.ok),
-  tap(battery => battery.size = 10),
+  tap(battery => battery.size = 15),
 )
 
 // Emits complete tryout data (as stored) on tryout end
@@ -55,7 +55,6 @@ const save$ = zip(
 // Emits every task twice.
 // First task is emitted immediately, then same task when solved and then next task immediately and so on.
 const task$ = battery$.pipe(
-  take(1),
   switchMap(
     battery => zip(
       from(battery.tasks),
@@ -102,13 +101,17 @@ zip(
   })
 })
 
-// On no-more-tasks
-// Chain with tryout and pass that end is true.
-task$.subscribe({
-  complete() {
-    runner$.next({ end: Date.now() })
-  }
-})
+// On last task solved, emit end time on runner.
+combineLatest(
+  battery$,
+  task$.pipe(
+    filter(task => task.solved),
+  )
+).pipe(
+  filter(([battery, task]) => battery.size === task.order)
+).subscribe(_ =>
+  runner$.next({ end: Date.now() })
+)
 
 // On tryout id and tryout end
 // Pass end time and id to store$
@@ -131,15 +134,13 @@ zip(
 save$.pipe(
   delay(500),
 ).subscribe(r => {
-  console.log(r)
   component$.next('done')
 })
 
 // On solve
 // Pass solved task and tryout id to store$
-combineLatest(
-  tryout$,
-  solve$,
+tryout$.pipe(
+  switchMap(tryoutid => solve$, (tryoutid, task) => [tryoutid, task]),
 ).subscribe(([tryoutid, task]) => {
   store$.next({
     fn: 'Solve.add',

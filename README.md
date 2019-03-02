@@ -1,28 +1,8 @@
-# Rotating block
 
-A 3d-animation of a rotating block, [see here](http://seval.io).
+# Mental Rotation Task
 
-## Getting started
+A [mental rotation task](https://en.wikipedia.org/wiki/Mental_rotation) is used to assess a persons ability to reason [spatially](https://en.wikipedia.org/wiki/Spatial_ability).
 
-Clone this repository and cd to project root:
+This project is a mental rotation task implemented as a web application.
 
-```
-git clone https://github.com/ahbk/seval.git && cd seval
-```
-
-### Prerequisites
-
-Install [node](https://nodejs.org/en/download/), [parcel](https://parceljs.org/getting_started.html) and [ansible](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html).
-
-### Installing
-
-Run ``npm install``.
-
-### Development
-
-* Run ``parcel watch ui/index.html --out-dir ui/dist & node index.js``
-* Open http://your-dev-host:3000 in your browser
-
-### Deploy
-
-Run ``ansible-playbook deploy.yml -i production``
+It runs live at [seval.io](http://seval.io).

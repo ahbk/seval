@@ -1,8 +1,8 @@
 node_modules
-src.tar.gz
-*.retry
+venv
+
 .cache
 ui/dist/
-venv
+
 __pycache__
-db.sqlite3
+secret_key.py

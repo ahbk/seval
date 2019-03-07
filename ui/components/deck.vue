@@ -1,9 +1,6 @@
 <template>
   <div class="deck">
-    <transition-group
-      name="deck"
-      v-on:enter="onpick"
-      >
+    <transition-group name="deck" v-on:enter="onpick">
       <task
         class="task"
         v-for="task in tasks"
@@ -13,6 +10,8 @@
         >
       </task>
     </transition-group>
+    <button ref="left" class="left">❌</button>
+    <button ref="right" class="right">✓</button>
   </div>
 </template>
 
@@ -22,14 +21,20 @@ import task from './task.vue'
 import { Subject, zip } from 'rxjs'
 import { delay } from 'rxjs/operators'
 import { pick$, solve$ } from '../controller'
-import { solve } from '../interactions'
+import { xswipe, xtype, xbuttons } from '../interactions'
 
 const mounted$ = new Subject()
 const picked$ = new Subject()
 const tasks = []
+const buttons = {
+  left: undefined,
+  right: undefined,
+}
 
 mounted$.subscribe(vm => {
   vm.tasks = tasks
+  buttons.left = vm.$refs.left
+  buttons.right = vm.$refs.right
 })
 
 pick$.pipe(
@@ -50,11 +55,15 @@ zip(pick$, picked$).pipe(
 
   task.picked = Date.now()
 
-  solve(task, element, (response) => {
+  let solve = response => {
     task.solved = Date.now()
     task.response = response
     solve$.next(task)
-  })
+  }
+
+  xbuttons(buttons.left, buttons.right, element, solve)
+  xtype(element, solve)
+  xswipe(element, solve)
 })
 
 export default {
@@ -88,13 +97,26 @@ export default {
 }
 </script>
 
-<style lang="css">
+<style scoped>
 .deck {
   position: relative;
   margin: auto;
+  height: 90vh;
+}
+button {
+  position: absolute;
+  bottom: 0;
+  font-size: 40px;
+  border: none;
+  background-color: white;
+}
+.left {
+  left: 0;
+  color: red;
+}
 
-  /* A8 */
-  height: 92vh;
-  width: 92vw;
+.right {
+  right: 0;
+  color: green;
 }
 </style>

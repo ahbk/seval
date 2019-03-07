@@ -1,68 +1,75 @@
-import anime from 'animejs/lib/anime.js'
+import { slideright, slideleft } from './animations'
 import { fromEvent, interval, from, merge } from 'rxjs'
 import { map, filter, take, tap, switchMap, scan, takeWhile } from 'rxjs/operators'
 
-export function solve(task, element, callback) {
-  let animeparams = {
-    right: {
-      easing: 'easeInSine',
-      duration: 200,
-      autoplay: false,
-      translateX: 600,
-      opacity: 0,
-      rotate: 10,
-    },
-    left: {},
-  }
+const xbuttons = function(left, right, element, callback) {
+  let subscriber = merge(
+    fromEvent(left, 'click').pipe(map(e => 'left')),
+    fromEvent(right, 'click').pipe(map(e => 'right')),
+  ).subscribe(direction => {
+    let animation = {
+      right: slideright(element),
+      left: slideleft(element),
+    }[direction]
 
-  Object.assign(animeparams.left, animeparams.right)
-  animeparams.left.translateX = -animeparams.right.translateX
-  animeparams.left.rotate = -animeparams.right.rotate
+    animation.play()
 
-  // These are animations for left and right response respectively
-  animeparams.right.targets = animeparams.left.targets = element
-  let targets = {
-    right: anime(animeparams.right),
-    left: anime(animeparams.left),
+    subscriber.unsubscribe()
+    callback({left: 0, right: 1}[direction])
+  })
+}
+
+const xtype = function(element, callback) {
+
+  let subscriber = fromEvent(document, 'keydown').pipe(
+    map(e => ({'f': 'left', 'j': 'right'}[e.key])),
+    filter(r => r != null),
+  ).subscribe(direction => {
+
+    let animation = {
+      right: slideright(element),
+      left: slideleft(element),
+    }[direction]
+
+    animation.play()
+
+    subscriber.unsubscribe()
+    callback({left: 0, right: 1}[direction])
+  })
+}
+
+const xswipe = function(element, callback) {
+
+  let animations = {
+    right: slideright(element),
+    left: slideleft(element),
   }
 
   let xswipe$ = xswipe$of(element)
   let xswipesub = xswipe$.subscribe(grab)
 
-  let typesub = fromEvent(document, 'keydown').pipe(
-    map(e => ({'f': 'left', 'j': 'right'}[e.key])),
-    filter(r => r != null),
-    take(1),
-  ).subscribe(direction => {
-    grab({
-      dx: 0,
-      direction: direction,
-      swipe: true,
-      last: true,
-    })
-  })
-
   function grab(op) {
     let rs = 3
     let seek = Math.abs(op.dx) / 2
-    let target = targets[op.direction]
+    let animation = animations[op.direction]
 
-    target.seek(seek)
+    animation.seek(seek)
 
-    if(!op.last) { return }
+    if(!op.last) {
+      return
+    }
 
     if(op.swipe) {
-      typesub.unsubscribe()
       xswipesub.unsubscribe()
 
-      target.play()
+      animation.play()
 
       callback({left: 0, right: 1}[op.direction])
     } else {
       interval(1).pipe(take(Math.floor(seek/rs))).subscribe({
-        next(t) { target.seek(seek - t * rs) },
+        next(t) { animation.seek(seek - t * rs) },
         complete() {
-          target.seek(0)
+          animation.seek(0)
           xswipe$.subscribe(grab)
         },
       })
@@ -122,3 +129,5 @@ function xswipe$of(el) {
     takeWhile(op => !op.last, true),
   )
 }
+
+export { xswipe, xtype, xbuttons }

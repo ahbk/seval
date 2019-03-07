@@ -45,7 +45,7 @@ const xswipe = function(element, callback) {
     left: slideleft(element),
   }
 
-  let xswipe$ = xswipe$of(element)
+  let xswipe$ = swipe$of(element)
   let xswipesub = xswipe$.subscribe(grab)
 
   function grab(op) {
@@ -77,7 +77,7 @@ const xswipe = function(element, callback) {
   }
 }
 
-function xswipe$of(el) {
+function swipe$of(el) {
   return fromEvent(el, 'touchstart').pipe(
 
     /* Take only the first changed touch of the first touchstart-event */
@@ -107,6 +107,7 @@ function xswipe$of(el) {
       ), (e, move) => {
         return {
           dx: move.pageX - start.pageX,
+          dy: move.pageY - start.pageY,
           last: e.type !== 'touchmove'
         }
       })
@@ -118,16 +119,18 @@ function xswipe$of(el) {
     scan((acc, cur) => {
       return {
         dx: cur.dx,
+        dy: cur.dy,
         direction: cur.dx > 0 ? 'right' : 'left',
         swipe: Math.abs(cur.dx - acc.xpath[3]) > 10,
         xpath: [cur.dx, ...acc.xpath].slice(0, 4),
+        ypath: [cur.dy, ...acc.ypath].slice(0, 4),
         last: cur.last
       }
-    }, { xpath: [] }),
+    }, { xpath: [], ypath: [] }),
 
     /* Complete observable on touchend or touchcance */
     takeWhile(op => !op.last, true),
   )
 }
 
-export { xswipe, xtype, xbuttons }
+export { xswipe, xtype, xbuttons, swipe$of }

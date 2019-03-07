@@ -1,15 +1,15 @@
 <template>
   <div class="dev">
-    <deck></deck>
+    <block></block>
   </div>
 </template>
 
 <script>
-import deck from './deck.vue'
+import block from './block.vue'
 
 export default {
   name: 'dev',
-  components: { deck },
+  components: { block },
   data () {
     return {}
   },

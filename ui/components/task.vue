@@ -9,13 +9,13 @@ import { cuboid } from '../../polygons/templates'
 import { projections, svg } from '../../polygons/utils'
 import Cluster from '../../polygons/cluster'
 
-let camera = [0, 0, -300]
+let camera = [0, 0, -500]
 let perspective = projections.perspective(camera)
 let colors = ['#ECCCEC', '#CCECEC']
 let transform = [
   scale(30),
   center(),
-  fit(70),
+  fit(80),
   zsort(camera),
   shading([1, -1, -1], 40, camera),
 ]

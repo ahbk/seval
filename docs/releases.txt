@@ -13,3 +13,5 @@ Seval 0.0.1 release notes
 *future*
 
 * Added button interaction
+* Created a block preview environment
+* Added two more test batteries

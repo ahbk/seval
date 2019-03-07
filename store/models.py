@@ -18,20 +18,40 @@ class Task(models.Model):
             }
 
 
-class Battery(models.Model):
-    code = models.CharField(max_length=255, unique=True)
+class Test(models.Model):
+    slug = models.CharField(max_length=255, unique=True)
     title = models.CharField(max_length=255)
     instructions = models.TextField()
-    tasks = models.ManyToManyField(Task)
+
+
+class Battery(models.Model):
+    slug = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
+    tasks = models.ManyToManyField(Task, through='BatteryTask')
+    test = models.ForeignKey(Test, on_delete=models.SET_NULL, null=True, blank=True)
 
     def get(content, scope):
-        battery = Battery.objects.get(code=content['code'])
+        battery = Battery.objects.get(
+                test__slug=content['test'],
+                slug=content['battery'],
+                )
         return {
                 'id': battery.pk,
-                'title': battery.title,
-                'instructions': battery.instructions,
-                'tasks': [Task.as_dict(task) for task in battery.tasks.all()],
+                'title': battery.test.title,
+                'instructions': battery.test.instructions,
+                'tasks': [Task.as_dict(task) for task in battery.tasks.order_by('batterytask__order')],
                 }
+
+
+class BatteryTask(models.Model):
+
+    class Meta:
+        ordering = ('order',)
+
+    battery = models.ForeignKey(Battery, on_delete=models.CASCADE)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    order = models.IntegerField(null=True, blank=True)
+
 
 class Tryout(models.Model):
     battery = models.ForeignKey(Battery, on_delete=models.SET_NULL, null=True, blank=True)
@@ -47,8 +67,8 @@ class Tryout(models.Model):
             'started': tryout.started.timestamp() * 1e3,
             'ended': tryout.ended.timestamp() * 1e3,
             'battery': {
-                'title': tryout.battery.title,
-                'instructions': tryout.battery.instructions,
+                'title': tryout.battery.test.title,
+                'instructions': tryout.battery.test.instructions,
                 },
             'solves': [ Solve.as_dict(s) for s in tryout.solve_set.all() ]
             }

@@ -38,7 +38,8 @@ mounted$.pipe(withLatestFrom(save$)).subscribe(([vm, [tryout, solves]]) => {
 restart$.subscribe(vm => {
   store$.next({
     fn: 'Battery.get',
-    code: 'mrt-pair-swipe',
+    test: 'mrt-pair',
+    battery: 'default',
   })
 })
 

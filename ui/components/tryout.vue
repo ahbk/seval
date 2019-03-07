@@ -10,7 +10,7 @@ import intro from './intro.vue'
 import deck from './deck.vue'
 import done from './done.vue'
 import fail from './fail.vue'
-import { test$, component$, store$, battery$ } from '../controller'
+import { component$, store$, battery$ } from '../controller'
 
 const vm = {
   component: 'loading'
@@ -18,21 +18,10 @@ const vm = {
 
 component$.subscribe(c => vm.component = c)
 
-/*
-store$.next({
-  'fn': 'Tryout.get',
-  'id': 381,
-})
-
-store$.subscribe(r => {
-  test$.next(r)
-  component$.next('done')
-})
-*/
-
 store$.next({
   fn: 'Battery.get',
-  code: 'mrt-pair-swipe',
+  test: 'mrt-pair',
+  battery: 'default',
 })
 
 export default {

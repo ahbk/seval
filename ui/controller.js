@@ -34,7 +34,7 @@ const tryout$ = store$.pipe(
 const battery$ = store$.pipe(
   filter(r => r.ok && r.fn === 'Battery.get'),
   map(r => r.ok),
-  tap(battery => battery.size = 15),
+  tap(battery => battery.size = battery.tasks.length),
 )
 
 // Emits complete tryout data (as stored) on tryout end

@@ -12,6 +12,12 @@ Seval 0.0.1 release notes
 
 *future*
 
+Features
+========
 * Added button interaction
 * Created a block preview environment
 * Added two more test batteries
+
+Bugfixes
+========
+* Devops: Build ui on deploy

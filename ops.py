@@ -183,6 +183,7 @@ ops = {
 def deploy():
     put()
     run('src')
+    run('build_ui')
     restart()
 
 # This should be run as dedicated user, otherwise root will be owner.

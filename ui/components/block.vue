@@ -1,102 +1,198 @@
 <template>
   <div class="block">
-    <canvas id="canvas" width="400" height="400"></canvas>
-    <textarea rows="5" v-model="block" @input="reparse"></textarea>
+    <canvas id="c"></canvas>
   </div>
 </template>
 
 <script>
-import Cluster from '../../polygons/cluster'
-import { fit, rotate, scale, center, zsort, shading } from '../../polygons/transforms'
-import { cuboid } from '../../polygons/templates'
-import { projections } from '../../polygons/utils'
-import { swipe$of } from '../interactions'
+import * as THREE from 'three'
+import { fromEvent, merge } from 'rxjs'
+import { map, filter } from 'rxjs/operators'
 
-const vm = {
-  block: '{"r":[0, 0, 0],"s":[[0, 0, 0]]}',
-}
+function getCompoundBoundingBox(group) {
+  var box = null
 
-let cluster = new Cluster()
-let camera = [0, 0, -500]
-let perspective = projections.perspective(camera)
-let transform = [
-  zsort(camera),
-  shading([1, -1, -1], 40, camera),
-]
+  group.traverse(member => {
+    var geometry = member.geometry
+    if (geometry === undefined) return
 
-function grab(r) {
-  let block = JSON.parse(vm.block)
-  let lx = r.dx - (r.xpath[1] || 0)
-  let ly = r.dy - (r.ypath[1] || 0)
+    geometry.computeBoundingBox()
 
-  block.r[0] += Math.round(180 * (ly / 100) / Math.PI)
-  block.r[1] -= Math.round(180 * (lx / 100) / Math.PI)
-
-  vm.block = JSON.stringify(block)
-
-  parse()
-
-  if(r.last) {
-    swipe$of(canvas).subscribe(grab)
-  }
-}
-
-function parse() {
-  cluster.polygons = []
-  var block = ''
-
-  try {
-    block = JSON.parse(vm.block)
-  } catch(error) {
-    return
-  }
-
-  block.s.forEach(cube => {
-    cluster.add(...cuboid(cube, 1, '#ECECEC'))
+    if (box === null) {
+      box = geometry.boundingBox.clone().translate(member.position)
+    } else {
+      box.union(geometry.boundingBox.clone().translate(member.position))
+    }
   })
 
-  cluster.apply(
-    scale(100),
-    fit(200),
-    center(),
-    rotate(block.r.map(e => Math.PI * e / 180)),
-    ...transform,
-  )
+  return box
+}
+
+const rotate$ = fromEvent(document, 'keydown').pipe(
+  map(e => ({
+    u: [-1, 0, 0],
+    d: [1, 0, 0],
+    l: [0, 1, 0],
+    r: [0, -1, 0],
+    i: [0, 0, 1],
+    o: [0, 0, -1],
+  }[e.key])),
+  filter(r => r),
+)
+
+const move$ = fromEvent(document, 'keydown').pipe(
+  map(e => ({
+    U: [0, 1, 0],
+    D: [0, -1, 0],
+    L: [-1, 0, 0],
+    R: [1, 0, 0],
+    I: [0, 0, 1],
+    O: [0, 0, -1],
+  }[e.key])),
+  filter(r => r),
+)
+
+const build$ = fromEvent(document, 'keydown').pipe(
+  filter(e => e.key === ' '),
+  map(e => true),
+)
+
+const zoom$ = fromEvent(document, 'keydown').pipe(
+  map(e => ({
+    '+': 1,
+    '-': -1,
+  }[e.key])),
+  filter(r => r),
+)
+
+function makeRedrawer(renderer, camera, scene) {
+  return function() {
+    let width = renderer.domElement.clientWidth
+    let height = renderer.domElement.clientHeight
+
+    camera.aspect = width / height
+    camera.updateProjectionMatrix()
+
+    if (renderer.domElement.width !== width || renderer.domElement.height !== height) {
+      renderer.setSize(width, height, false);
+    }
+
+    renderer.render(scene, camera)
+  }
+}
+
+function makeMover(geometry, redraw) {
+  const rotation = [0, 0, 0]
+  return function(delta) {
+    rotation.forEach((e, i) => {
+      rotation[i] = e + delta[i] / 7
+    })
+    let axis = new THREE.Vector3(...delta)
+    geometry.rotateOnWorldAxis(axis, .1)
+    redraw()
+  }
+}
+
+function makeRotator(geometry, redraw) {
+  const rotation = [0, 0, 0]
+  return function(delta) {
+    rotation.forEach((e, i) => {
+      rotation[i] = e + delta[i] / 7
+    })
+    let axis = new THREE.Vector3(...delta)
+    geometry.rotateOnWorldAxis(axis, .1)
+    redraw()
+  }
 }
 
 function start() {
-  let canvas = document.getElementById('canvas')
-  let context = canvas.getContext('2d')
+  const canvas = document.querySelector('#c')
 
-  swipe$of(canvas).subscribe(grab)
+  const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true})
 
-  context.translate(canvas.width/2, canvas.height/2)
+  const camera = new THREE.PerspectiveCamera(75, 2, 0.1, 50)
+  camera.position.z = 6
 
-  cluster.onchange = (polygons) => {
-    context.clearRect(-canvas.width/2, -canvas.height/2, canvas.width, canvas.height)
+  const scene = new THREE.Scene()
+  scene.background = new THREE.Color(0xFFFFFF)
 
-    polygons.forEach(polygon => {
-      context.fillStyle = polygon.fill()
-      context.strokeStyle = 'white'
-      context.beginPath()
+  const light = new THREE.DirectionalLight(0x888888, 1)
+  light.position.set(-1, 2, 4)
+  scene.add(light)
 
-      polygon.vectors.forEach(v => context.lineTo(...perspective(v)))
 
-      context.closePath()
-      context.stroke()
-      context.fill()
+  const space = new THREE.Group()
+  scene.add(space)
+
+  const block = new THREE.Group()
+  space.add(block)
+
+
+  const cursor = new THREE.Mesh(
+    new THREE.BoxGeometry(1.1, 1.1, 1.1),
+    new THREE.MeshPhongMaterial({ color: 0x000000, opacity: 0.4, transparent: true })
+  )
+
+  space.add(cursor)
+
+  const redraw = makeRedrawer(renderer, camera, scene)
+  redraw()
+
+  rotate$.subscribe(makeRotator(space, redraw))
+
+  zoom$.subscribe(zoom => {
+    camera.position.z += zoom / 7
+    redraw()
+  })
+
+  merge(move$, rotate$).subscribe(_ => {
+    let bb = new THREE.Box3().setFromObject(space)
+    camera.lookAt(bb.getCenter())
+    console.log(camera.view)
+  })
+
+  move$.subscribe(move => {
+    cursor.position.x += move[0]
+    cursor.position.y += move[1]
+    cursor.position.z += move[2]
+    redraw()
+  })
+
+  build$.subscribe(build => {
+    block.children.forEach(cube => {
+      if(!cube.position.distanceTo(cursor.position)) {
+        block.remove(cube)
+        build = false
+      }
     })
-  }
-  parse()
+    if(build) {
+      let geometry = new THREE.BoxGeometry(1, 1, 1)
+      let material = new THREE.MeshPhongMaterial({emissive: 0x882255})
+      let cube = new THREE.Mesh(geometry, material)
+      let edges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(geometry),
+        new THREE.LineBasicMaterial({ color: 0xFFFFFF })
+      )
+      cube.add(edges)
+
+      cube.position.x = cursor.position.x
+      cube.position.y = cursor.position.y
+      cube.position.z = cursor.position.z
+
+      block.add(cube)
+    }
+    redraw()
+  })
+
 }
+
 
 export default {
   name: 'block',
   data () {
-    return vm
+    return {}
   },
   methods: {
-    reparse: parse,
   },
   mounted: function() {
     this.$nextTick(start)
@@ -105,13 +201,11 @@ export default {
 </script>
 
 <style>
-.block {
-}
-textarea {
-  width: 100%;
-}
 canvas {
   display: block;
   margin: 0 auto;
+  width: 600px;
+  height: 600px;
+  touch-action: auto;
 }
 </style>

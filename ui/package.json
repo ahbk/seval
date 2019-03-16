@@ -1,8 +1,10 @@
 {
   "dependencies": {
     "animejs": "^3.0.1",
+    "hammerjs": "^2.0.8",
     "normalize.css": "^8.0.1",
     "rxjs": "^6.4.0",
+    "three": "^0.102.1",
     "vue": "^2.6.4",
     "vue-hot-reload-api": "^2.3.3"
   },
